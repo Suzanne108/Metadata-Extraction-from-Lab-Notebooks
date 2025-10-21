@@ -1,6 +1,7 @@
 from providers.factory import LLMProviderFactory
 from providers.base_provider import Provider
 from rag.document_loader import DocumentLoader
+from rag.document_chunker import DocumentChunker
 from pathlib import Path
 import asyncio
 
@@ -18,5 +19,9 @@ if __name__ == "__main__":
     pdf_path = Path(__file__).parent.parent / "papers" / "Image-based_methods_for_phenotyping_growth_dynamics_and_fitness_components_in_arabidopsis_thaliana.pdf"
     pages = asyncio.run(loader.load_pdf(pdf_path))
 
-    print(f"{pages[0].metadata}\n")
-    print(pages[0].page_content)
+    chunker = DocumentChunker()
+    chunks = chunker.chunk_documents(pages)
+
+    print(f"Split document into {len(chunks)} sub-documents.")
+
+    print(f"first chunk: {chunks[0].page_content}")
