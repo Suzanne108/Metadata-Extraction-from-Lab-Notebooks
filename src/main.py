@@ -2,6 +2,7 @@ from providers.factory import LLMProviderFactory
 from providers.base_provider import Provider
 from rag.document_loader import DocumentLoader
 from rag.document_chunker import DocumentChunker
+from rag.document_embedder import DocumentEmbedder
 from pathlib import Path
 import asyncio
 
@@ -22,6 +23,8 @@ if __name__ == "__main__":
     chunker = DocumentChunker()
     chunks = chunker.chunk_documents(pages)
 
-    print(f"Split document into {len(chunks)} sub-documents.")
+    embedder = DocumentEmbedder()
+    embedder.set_embedding_model(Provider.OPENAI, "text-embedding-3-small")
+    embedding_ids = embedder.embed_documents(chunks)
 
-    print(f"first chunk: {chunks[0].page_content}")
+    print(f"Embedded {len(embedding_ids)} document chunks. First three embeddings are: {embedding_ids[:3]}" )
