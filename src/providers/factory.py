@@ -1,5 +1,6 @@
 from .base_provider import Provider, LLMProvider
 from .openai_provider import OpenAIProvider
+from .huggingface_provider import HuggingFaceAPIProvider
 from dotenv import load_dotenv
 import os
 
@@ -25,5 +26,9 @@ class LLMProviderFactory():
             load_dotenv()
             api_key = os.getenv("OPENAI_API_KEY")
             return OpenAIProvider(api_key, self.model)
+        elif self.provider == Provider.HUGGINGFACE:
+            load_dotenv()
+            api_key = os.getenv("HUGGINGFACE_API_KEY")
+            return HuggingFaceAPIProvider(api_key, self.model)
         else:
             raise ValueError("Unsupported provider or provider not set.")

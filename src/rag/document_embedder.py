@@ -2,6 +2,7 @@ from providers.base_provider import Provider
 from dotenv import load_dotenv
 import os
 from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings 
 from langchain_core.vectorstores import InMemoryVectorStore
 
 class DocumentEmbedder():
@@ -22,6 +23,15 @@ class DocumentEmbedder():
                 raise ValueError("OPENAI_API_KEY not found in environment variables.")
 
             self.embedding_model = OpenAIEmbeddings(model=model)
+            self.vector_store = InMemoryVectorStore(self.embedding_model)
+        elif provider == Provider.HUGGINGFACE:
+            load_dotenv()
+            api_key = os.getenv("HUGGINGFACE_API_KEY")
+            
+            if api_key is None:
+                raise ValueError("HUGGINGFACE_API_KEY not found in environment variables.")
+
+            self.embedding_model = HuggingFaceEmbeddings(model=model)
             self.vector_store = InMemoryVectorStore(self.embedding_model)
 
         else:
