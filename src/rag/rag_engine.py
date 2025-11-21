@@ -10,6 +10,7 @@ import os
 import json
 import textwrap
 import shutil
+import re
 
 # State controls what data is input to the application, transferred between components, and output from the application.
 class OverallState(TypedDict):
@@ -19,6 +20,7 @@ class OverallState(TypedDict):
 
 class InputState(TypedDict):
     question: str
+    similarity_search: str
 
 class RAGEngine():
 
@@ -31,7 +33,6 @@ class RAGEngine():
         api_key = os.getenv("LANGCHAIN_API_KEY") 
         self.langsmith_client = Client(api_key)
 
-    ## Question: how many docs are retrieved here?
     def retrieve(self, state: InputState) -> OverallState:
         """Retrieve relevant documents from the vector store using the incoming state.
 
@@ -41,8 +42,9 @@ class RAGEngine():
         """
         query = state.get("question")
         if not query:
-            return {"context": []}
+            raise ValueError("similarity_search must be a non-empty string")
 
+        # Default amount is 4 documents retrieved
         retrieved_docs = self.vector_store.similarity_search(query)
         return {"context": retrieved_docs}
     
@@ -55,7 +57,7 @@ class RAGEngine():
         `answer` key.
         """
         docs = state.get("context") or []
-        question = state.get("question", "")
+        question = state.get("question")
 
         docs_content = "\n\n".join([getattr(doc, "page_content", str(doc)) for doc in docs])
 
@@ -134,6 +136,9 @@ class RAGEngine():
                 context = getattr(result, "context", None)
                 answer = getattr(result, "answer", None)
 
+        print("\n=== Question ===")
+        print(state["question"])
+
         # Print a nicely formatted context and answer to the terminal.
         print("\n=== Retrieved context ===\n")
         self._print_context(context)
@@ -192,4 +197,14 @@ class RAGEngine():
         'model', 'id', 'object', and 'usage' are filtered out.
         """
         #TODO: improve answer printing 
-        print(str(answer))
+
+        # regex to capture the content inside Message(content=' ... ')
+        match = re.search(r"Message\(content='(.*?)',\s*role=", answer, re.DOTALL)
+
+        if match:
+            model_response = match.group(1)
+            # optional: unescape literal \n to real newlines
+            model_response = model_response.encode('utf-8').decode('unicode_escape')
+            print(model_response.strip())
+        else:
+            print("No model content found.")

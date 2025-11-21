@@ -52,11 +52,15 @@ def document_indexing(file_name: str):
     
     return embedder.vector_store
 
-def run_rag_query(vector_store: InMemoryVectorStore, question: str):
+def run_rag_query(vector_store: InMemoryVectorStore, question: str, search: str):
     """Runs a RAG query using the provided vector store and question."""
 
+    if search == "":
+        search = question
+
     initial_state: InputState = {
-        "question": question
+        "question": question,
+        "similarity_search": search
     }
 
     provider_factory = LLMProviderFactory()
@@ -77,4 +81,13 @@ if __name__ == "__main__":
     file_name = "Image-based_methods_for_phenotyping_growth_dynamics_and_fitness_components_in_arabidopsis_thaliana.pdf"
 
     vector_store = document_indexing(file_name)
-    run_rag_query(vector_store, "What is the main focus of the paper?")
+    run_rag_query(vector_store, "What is the main focus of the paper?", "")
+
+    # Investigation
+    run_rag_query(vector_store, "Considering the ISA framework, please provide me with information on the investigation of this research. Who are the people involved? What organizations are affiliated?", "")
+
+    # Study
+    run_rag_query(vector_store, "Considering the ISA framework, please provide me with information on the study of this research. What is the study design, what factors and protocls are involved?", "")
+
+    # Assay
+    run_rag_query(vector_store, "Considering the ISA framework, please provide me with information on the assays involved in this research. What materials are used and please descirbe the samples, technologies used and measurements taken", "")
