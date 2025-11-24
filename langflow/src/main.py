@@ -4,15 +4,11 @@ import os
 import uuid
 import json
 from isatools import isajson
+from prompt_generator import Prompt
 
 
-def call_langflow_workflow() -> dict:
+def call_langflow_workflow(url, prompt) -> dict:
     """Calls a Langflow workflow and returns the result as a string."""
-
-    url = "http://localhost:7860/api/v1/run/23d139c5-9665-45e5-a612-414b92a9e9c4"
-
-    prompt = "Generate a short JSON file adhering to the ISA schema for life sciences experiments. The values of the JSON can be entirely random. Please only output the JSON string so that I can parse it immediately. Do not output any additional text"
-   
 
     # Request payload configuration
     payload = {
@@ -61,11 +57,11 @@ def parse_workflow_result(result: str) -> dict :
     except json.JSONDecodeError:    
         return TypeError("The LLM did not return valid JSON.")
     
-def generate_ISA_json() -> dict:
+def generate_ISA_json(url: str, output_file: str, prompt: Prompt) -> dict:
     """Generates an ISA JSON file using a Langflow workflow."""
 
-    isa_json = parse_workflow_result(extract_message(call_langflow_workflow()))
-    with open('sample.json', 'w') as f:
+    isa_json = parse_workflow_result(extract_message(call_langflow_workflow(url, prompt)))
+    with open(output_file, 'w') as f:
        json.dump(isa_json, f)
 
     return isa_json
@@ -80,6 +76,14 @@ def validate_ISA_schema(file_path: str) -> dict :
     return json_report
 
 if __name__=="__main__":
-   validate_ISA_schema('sample.json')
+   prompt = Prompt.PROTOTYPE_V2
+
+   url = "http://localhost:7860/api/v1/run/23d139c5-9665-45e5-a612-414b92a9e9c4"
+
+   json_output_file = "prototype_version_2.json"
+
+   generate_ISA_json = (url, json_output_file, prompt)
+
+   validate_ISA_schema(json_output_file)
    
 
