@@ -57,7 +57,11 @@ class DocumentManager():
 
         retrieved_docs = self.vector_store.similarity_search(query, k=k)
 
-        return retrieved_docs
+        retrieved_text = []
+        for doc in retrieved_docs:
+            retrieved_text.append(doc.page_content)
+
+        return retrieved_text
     
 
 
