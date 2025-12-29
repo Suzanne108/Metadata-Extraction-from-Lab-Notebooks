@@ -1,5 +1,5 @@
 from langchain.agents import create_agent
-from src.tools import create_doc_getter, get_ISA_schema, validate_ISA_schema
+from src.tools import create_doc_getter,  validate_ISA_schema
 from src.model import get_chat_model
 from src.prompts.registry import PromptRegistry
 from src.state import ISAExtractionState
@@ -8,7 +8,7 @@ from src.prompts.renderer import render_prompt
 from src.utils import log
 from langchain.messages import SystemMessage
 
-def get_simple_agent(doc_manager: DocumentManager):
+def get_simple_agent_v1(doc_manager: DocumentManager):
     model = get_chat_model()
 
     prompt_registry = PromptRegistry()
@@ -16,7 +16,7 @@ def get_simple_agent(doc_manager: DocumentManager):
 
     doc_chunk_tool = create_doc_getter(doc_manager)
 
-    agent_name = "simple_agent"
+    agent_name = "simple_agent_v1"
 
     agent = create_agent(
         model = model, 

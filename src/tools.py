@@ -9,8 +9,8 @@ from jsonschema import validate, ValidationError
 def create_doc_getter(doc_manager: DocumentManager) -> List:
     """Creates tools with access to their dependencies"""
 
-    @tool
-    def get_doc_chunk(query: str, k: int = 1) -> List[Document]:
+    @tool(name="search_document", description="Given a search query, retrieves k relevant pieces from the document")
+    def search_document(query: str, k: int = 1) -> List[Document]:
         """ Retrieves relevant chunks from the extraction document """
 
         # The doc manager must be retrieved from the context
@@ -18,7 +18,7 @@ def create_doc_getter(doc_manager: DocumentManager) -> List:
 
         return chunks
 
-    return get_doc_chunk
+    return search_document
 
 def create_schema_getter() -> List:
     """Creates individual tools for each schema"""

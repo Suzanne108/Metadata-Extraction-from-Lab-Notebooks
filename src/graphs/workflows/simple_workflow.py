@@ -1,22 +1,15 @@
 from pathlib import Path
 
-from src.agents.simple_agent import get_simple_agent
-from src.document_processing import DocumentManager
+from src.agents.simple_agent import get_simple_agent_v1
 from langchain.messages import HumanMessage
-from langchain_core.documents import Document
-
-def index_document() -> DocumentManager:
-    path = Path.cwd() / "papers" / "Image-based_methods_for_phenotyping_growth_dynamics_and_fitness_components_in_arabidopsis_thaliana.pdf "
-    doc_manager = DocumentManager()
-
-    doc_manager.embed_documents(path)
-
-    return doc_manager
+from src.graphs.utils import index_document
 
 
-def simple_workflow():
+
+
+def simple_workflow_v1():
     doc_manager = index_document()
-    agent = get_simple_agent(doc_manager)
+    agent = get_simple_agent_v1(doc_manager)
 
     question = "Please extract the title and authors from the given document."
 
