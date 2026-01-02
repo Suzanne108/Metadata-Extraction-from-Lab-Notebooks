@@ -1,11 +1,12 @@
 from src.state.v2 import ISAExtractionStateV2
 from src.tools import get_schema, validate_ISA_schema
 from langchain.messages import AIMessage, ToolMessage
+from langchain_core.tools import StructuredTool
 
 
 def read_schema(state: ISAExtractionStateV2):
 
-    schema_name = state['orchestrator_decision'].schema
+    schema_name= state['orchestrator_decision'].schema_to_fetch
     
     # Fetch schema
     if schema_name is not None:
@@ -30,14 +31,19 @@ def read_schema(state: ISAExtractionStateV2):
         }
     
 
-def create_search_document_caller(search_document_tool: callable):
+def create_search_document_caller(search_document_tool: StructuredTool):
 
     def search_document_caller(state: ISAExtractionStateV2):
         query = state['orchestrator_decision'].query
 
         # Call the search document tool
-        results = search_document_tool(query)
-
+        # in src/graphs/nodes/tool_callers.py -> create_search_document_caller
+        if hasattr(search_document_tool, "run"):
+            results = search_document_tool.run(query, k=state['orchestrator_decision'].k or 1)
+        elif callable(search_document_tool):
+            results = search_document_tool(query, k=state['orchestrator_decision'].k or 1)
+        else:
+            raise TypeError("search_document_tool is not callable and has no .run() method")
         message = f"Retrieved {len(results)} documents for query: {query}"
 
         # Copy the evidence dict and update it; dict.update() returns None so avoid using it directly

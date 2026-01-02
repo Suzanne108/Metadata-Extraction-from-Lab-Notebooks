@@ -44,7 +44,7 @@ def create_ISA_updater(model: ChatOpenAI):
         response = model.invoke(prompt)
 
         return {
-            "draft_isa_metadata": response,
+            "draft_isa_metadata": response.content,
             "messages": state.get("messages", []) +  [AIMessage(content="Updated draft ISA metadata.")]
         }
 

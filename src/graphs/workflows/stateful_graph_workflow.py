@@ -8,6 +8,7 @@ from src.graphs.nodes.routing_function import routing_function
 from langgraph.graph import StateGraph, START, END
 from src.state.v2 import ISAExtractionStateV2
 from src.graphs.nodes.tool_callers import read_schema, create_search_document_caller, validate
+from langchain_core.runnables import RunnableConfig
 
 
 def create_workflow_dependencies(): 
@@ -88,4 +89,6 @@ def run_stateful_graph_workflow():
         validation_result={}
     )
 
-    stream_messages(app, initial_state)
+    config = RunnableConfig(recursion_limit=50)
+
+    stream_messages(app, initial_state, config=config)

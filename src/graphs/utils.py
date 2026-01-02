@@ -9,6 +9,7 @@ from langgraph.graph import StateGraph
 from src.document_processing import DocumentManager
 from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod
 from IPython.display import display, HTML, Image
+from langchain_core.runnables import RunnableConfig
 
 
 class Action(Enum):
@@ -38,7 +39,7 @@ def index_document() -> DocumentManager:
 
     return doc_manager
 
-def stream_messages(agent, state, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
+def stream_messages(agent, state, config: RunnableConfig = None, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
     """
     Stream agent steps to stdout and also append them efficiently to `output_path`.
 
@@ -58,7 +59,7 @@ def stream_messages(agent, state, output_path: str | Path = None, buffer_size: i
 
     f = output_path.open("a", encoding="utf-8", buffering=1)  # line-buffered; we'll control flush explicitly
     try:
-        for chunk in agent.stream(state, stream_mode="updates"):
+        for chunk in agent.stream(state, stream_mode="updates", config=config):
             for node_name, data in chunk.items():
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 header = f"[{timestamp}] Step: {node_name}\n"
