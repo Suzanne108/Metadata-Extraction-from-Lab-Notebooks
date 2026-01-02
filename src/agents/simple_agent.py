@@ -2,7 +2,7 @@ from langchain.agents import create_agent
 from src.tools import create_doc_getter,  validate_ISA_schema
 from src.model import get_chat_model
 from src.prompts.registry import PromptRegistry
-from src.state import ISAExtractionState
+from src.state.v2 import ISAExtractionStateV1
 from src.document_processing import DocumentManager
 from src.prompts.renderer import render_prompt
 from src.utils import log
@@ -23,7 +23,7 @@ def get_simple_agent_v1(doc_manager: DocumentManager):
         tools = [doc_chunk_tool],
         name = agent_name,
         system_prompt = prompt,
-        state_schema = ISAExtractionState
+        state_schema = ISAExtractionStateV1
     )
 
     log(f"Finished creating agent {agent_name}")

@@ -1,8 +1,33 @@
+from enum import Enum
 from pathlib import Path
 import time
 import os
+from src.schema import Schema
+from pydantic import BaseModel, Field
+from langgraph.graph import StateGraph
 
 from src.document_processing import DocumentManager
+from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod
+from IPython.display import display, HTML, Image
+
+
+class Action(Enum):
+    SEARCH_DOCUMENT = "search_document"
+    READ_SCHEMA = "retrieve ISA schema"
+    VALIDATE = "validate current version"
+    UPDATE_DRAFT = "update draft"
+    PLANNER = "planner"
+    INSTRUCTOR = "instructor"
+    STOP = "END"
+
+
+class NextStep(BaseModel):
+    action: Action = Field(description= "The next step to perform")
+    focus: str | None = Field(description= "In case of action update_draft, the field or section to focus on")
+    query: str | None = Field(description= "In case of action search_document, the query to search the document with")
+    k: int | None = Field(description= "In case of search_document, the amount of semantically relevant pieces to retrieve")
+    schema_to_fetch: Schema | None = Field(description= "In case of action retrieve_ISA_schema, the schema to retrieve")
+    rationale: str = Field(description= "The reason for choosing this action")
 
 
 def index_document() -> DocumentManager:
@@ -13,7 +38,7 @@ def index_document() -> DocumentManager:
 
     return doc_manager
 
-def stream(agent, state, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
+def stream_messages(agent, state, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
     """
     Stream agent steps to stdout and also append them efficiently to `output_path`.
 
@@ -107,3 +132,25 @@ def stream(agent, state, output_path: str | Path = None, buffer_size: int = 10, 
             f.close()
         except Exception:
             pass
+
+
+def visualise_graph(app: StateGraph, output_path: str | Path = None):
+    """Visualise the state graph and save to output_path"""
+    
+    if output_path is None:
+        output_path = Path.cwd() / "output" / "graph_visualization.png"
+    
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Generate the graph image
+    graph_image = app.get_graph().draw_mermaid_png(
+        draw_method=MermaidDrawMethod.API,
+    )
+    
+    # Save to file
+    with open(output_path, "wb") as f:
+        f.write(graph_image)
+    
+    print(f"Graph visualization saved to: {output_path}")
+    

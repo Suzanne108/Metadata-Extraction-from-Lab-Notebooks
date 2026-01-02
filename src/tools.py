@@ -6,10 +6,11 @@ from src.schema import Schema
 import json
 from jsonschema import validate, ValidationError
 
+
 def create_doc_getter(doc_manager: DocumentManager) -> List:
     """Creates tools with access to their dependencies"""
 
-    @tool(name="search_document", description="Given a search query, retrieves k relevant pieces from the document")
+    @tool("search_document", description="Given a search query, retrieves k relevant pieces from the document")
     def search_document(query: str, k: int = 1) -> List[Document]:
         """ Retrieves relevant chunks from the extraction document """
 
@@ -41,6 +42,16 @@ def create_schema_getter() -> List:
     
     return tools
 
+def get_schema(s: Schema) -> Dict:
+
+    try:
+       file_path = s.get_file_path()
+       with open(file_path, "r", encoding="utf-8") as fp:
+           return json.load(fp)
+    except Exception as e:
+       raise ValueError(f"Failed to load schema JSON: {e}")
+
+
 @tool
 def validate_ISA_schema(isa: dict) -> Dict:
     """ Validates the given ISA schema, returns a report """
@@ -60,5 +71,7 @@ def validate_ISA_schema(isa: dict) -> Dict:
         report = {"valid": False, "message": e.message, "json_path": e.json_path, "context": e.context, "cause": e.cause}
 
         return report
+    
+
 
     

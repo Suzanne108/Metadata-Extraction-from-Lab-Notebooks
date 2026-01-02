@@ -1,7 +1,7 @@
 
 from src.agents.standalone_extraction_agent import get_standalone_extraction_agent
 from langchain.messages import HumanMessage
-from src.graphs.utils import index_document, stream
+from src.graphs.utils import index_document, stream_messages
 
 
 def standalone_agent_workflow():
@@ -15,4 +15,4 @@ def standalone_agent_workflow():
         "document": doc_manager.document
     }
 
-    stream(agent, state)
+    stream_messages(agent, state)
