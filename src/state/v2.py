@@ -15,7 +15,7 @@ class ISAExtractionStateV2(TypedDict):
     draft_isa_metadata: dict | None
     
     # The latest validation results
-    validation_result: dict | None # The latest validation report
+    validation_result: dict | None 
 
     # The latest decision from the orchestrator
     orchestrator_decision: NextStep | None
