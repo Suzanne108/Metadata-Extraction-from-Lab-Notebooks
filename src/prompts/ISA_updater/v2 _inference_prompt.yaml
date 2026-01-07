@@ -1,0 +1,21 @@
+name: ISA_updater
+version: v2-inference
+
+input_variables:
+- draft_isa_metadata
+- instructions
+- latest_evidence
+
+template: |
+
+
+  The draft isa metadata that has been created up until now is: {draft_isa_metadata}
+
+  The latest evidence that has been retrieved from the source document that you might want to use is the following: {latest_evidence}
+
+  The instructions from the planner are: {instructions}
+
+  Inputs
+   - draft_isa_metadata (JSON): {draft_isa_metadata}
+   - focus (string): {focus}            # JSON path or schema field/section to update (e.g., "study.contacts" or "assays[0].measurement_type")
+   - latest_evidence (list): {latest_evidence}

@@ -17,18 +17,28 @@ class Action(Enum):
     READ_SCHEMA = "retrieve ISA schema"
     VALIDATE = "validate current version"
     UPDATE_DRAFT = "update draft"
+    STOP = "END"
+
+class Node(Enum):
+    SEARCH_DOCUMENT = "search_document"
+    READ_SCHEMA = "retrieve_ISA_schema"
+    VALIDATE = "validate"
+    UPDATE_DRAFT = "update_draft"
     PLANNER = "planner"
-    INSTRUCTOR = "instructor"
     STOP = "END"
 
 
 class NextStep(BaseModel):
     action: Action = Field(description= "The next step to perform")
-    focus: str | None = Field(description= "In case of action update_draft, the field or section to focus on")
+    instruction: str | None = Field(description= "In case of action update_draft, the instruction to be given to the ISA updater agent")
     query: str | None = Field(description= "In case of action search_document, the query to search the document with")
     k: int | None = Field(description= "In case of search_document, the amount of semantically relevant pieces to retrieve")
     schema_to_fetch: Schema | None = Field(description= "In case of action retrieve_ISA_schema, the schema to retrieve")
     rationale: str = Field(description= "The reason for choosing this action")
+
+class DraftUpdate(BaseModel):
+    updated_draft: dict = Field(description= "The updated draft ISA metadata after applying the changes")
+    message: str = Field(description= "The updated message history including the latest LLM response")
 
 
 def index_document() -> DocumentManager:

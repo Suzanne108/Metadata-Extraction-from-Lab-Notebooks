@@ -1,14 +1,17 @@
 from src.graphs.nodes.ISA_updater import create_ISA_updater
-from src.graphs.nodes.instructor import instructor
 from src.model import get_chat_model
 from src.graphs.nodes.planner import create_planner
-from src.tools import create_doc_getter, create_schema_getter, validate_ISA_schema
-from src.graphs.utils import index_document, stream_messages, NextStep, Action
+from src.tools import create_doc_getter, create_schema_getter
+from src.graphs.utils import index_document, stream_messages, NextStep, Action, DraftUpdate, Node
 from src.graphs.nodes.routing_function import routing_function
 from langgraph.graph import StateGraph, START, END
 from src.state.v2 import ISAExtractionStateV2
 from src.graphs.nodes.tool_callers import read_schema, create_search_document_caller, validate
 from langchain_core.runnables import RunnableConfig
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from src.prompts.registry import PromptRegistry
+from src.prompts.renderer import render_prompt
+from langchain.messages import SystemMessage
 
 
 def create_workflow_dependencies(): 
@@ -23,51 +26,58 @@ def create_workflow_dependencies():
 
 
 def create_stateful_graph_workflow() -> StateGraph:
+    #TODO: refactor to separate functions
+
     # Create workflow dependencies
     search_document_caller, schema_getter_tools = create_workflow_dependencies()
 
     # Create model for planner with structured output
     model_planner = get_chat_model().with_structured_output(NextStep)
-   
+
+    registry = PromptRegistry()
+    planner_system_prompt = render_prompt(
+        registry.get_prompt("planner", "v2-system"), {})
+
     # Create planner node
-    planner = create_planner(model_planner)
+    planner_node = create_planner(model_planner, planner_system_prompt)
 
     # Create model for ISA updater
-    model_updater = get_chat_model()
-    model_updater.bind_tools(schema_getter_tools)
+    model_updater = get_chat_model().bind_tools(schema_getter_tools).with_structured_output(DraftUpdate)
 
-    isa_updater = create_ISA_updater(model_updater)
+    updater_system_prompt = render_prompt(
+        registry.get_prompt("ISA_updater", "v2-system"), {})
+
+    # Create ISA updater node
+    isa_updater = create_ISA_updater(model_updater, updater_system_prompt)
 
     graph = StateGraph(ISAExtractionStateV2)
 
-    graph.add_node(Action.INSTRUCTOR.value, instructor)
-    graph.add_node(Action.PLANNER.value, planner)
-    graph.add_node(Action.UPDATE_DRAFT.value, isa_updater)
-    graph.add_node(Action.SEARCH_DOCUMENT.value, search_document_caller)
-    graph.add_node(Action.READ_SCHEMA.value, read_schema)
-    graph.add_node(Action.VALIDATE.value, validate)
+    graph.add_node(Node.PLANNER.value, planner_node)
+    graph.add_node(Node.UPDATE_DRAFT.value, isa_updater)
+    graph.add_node(Node.SEARCH_DOCUMENT.value, search_document_caller)
+    graph.add_node(Node.READ_SCHEMA.value, read_schema)
+    graph.add_node(Node.VALIDATE.value, validate)
 
-    graph.add_edge(START, Action.INSTRUCTOR.value)
-    graph.add_edge(Action.INSTRUCTOR.value, Action.PLANNER.value)
+    graph.add_edge(START, Node.PLANNER.value)
     
     # Conditional edges from planner based on its decision
     graph.add_conditional_edges(
-        Action.PLANNER.value, 
+        Node.PLANNER.value, 
         routing_function,
         {
-            Action.UPDATE_DRAFT.value: Action.UPDATE_DRAFT.value,
-            Action.SEARCH_DOCUMENT.value: Action.SEARCH_DOCUMENT.value,
-            Action.READ_SCHEMA.value: Action.READ_SCHEMA.value,
-            Action.VALIDATE.value: Action.VALIDATE.value,
-            Action.STOP.value: END,  # Allow planner to decide when to END
+            Node.UPDATE_DRAFT.value: Node.UPDATE_DRAFT.value,
+            Node.SEARCH_DOCUMENT.value: Node.SEARCH_DOCUMENT.value,
+            Node.READ_SCHEMA.value: Node.READ_SCHEMA.value,
+            Node.VALIDATE.value: Node.VALIDATE.value,
+            Node.STOP.value: END,  # Allow planner to decide when to END
         }
     )
 
     # All action nodes route back to planner
-    graph.add_edge(Action.UPDATE_DRAFT.value, Action.PLANNER.value)
-    graph.add_edge(Action.SEARCH_DOCUMENT.value, Action.PLANNER.value)
-    graph.add_edge(Action.READ_SCHEMA.value, Action.PLANNER.value)
-    graph.add_edge(Action.VALIDATE.value, Action.PLANNER.value)
+    graph.add_edge(Node.UPDATE_DRAFT.value, Node.PLANNER.value)
+    graph.add_edge(Node.SEARCH_DOCUMENT.value, Node.PLANNER.value)
+    graph.add_edge(Node.READ_SCHEMA.value, Node.PLANNER.value)
+    graph.add_edge(Node.VALIDATE.value, Node.PLANNER.value)
 
     app = graph.compile()
 
