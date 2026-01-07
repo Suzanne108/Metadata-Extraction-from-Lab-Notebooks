@@ -12,7 +12,7 @@ def get_standalone_extraction_agent(doc_manager: DocumentManager):
     model = get_chat_model()
 
     prompt_registry = PromptRegistry()
-    prompt : SystemMessage = render_prompt(prompt_registry.get_prompt("extract_ISA", "v1"), {})
+    prompt : SystemMessage = SystemMessage(content= render_prompt(prompt_registry.get_prompt("extract_ISA", "v1"), {}))
 
     doc_chunk_tool = create_doc_getter(doc_manager)
     schema_getter_tools = create_schema_getter()

@@ -6,9 +6,8 @@ from src.prompts.renderer import render_prompt
 
 def instructor(state: ISAExtractionStateV2):
 
-    #TODO: update to the correct prompt
     prompt_registry = PromptRegistry()
-    prompt : SystemMessage = render_prompt(prompt_registry.get_prompt("extract_ISA", "v2"), {})
+    prompt : SystemMessage = SystemMessage(render_prompt(prompt_registry.get_prompt("instructor", "v1"), {}))
 
     return {
             "messages": state.get("messages", []) + [prompt]

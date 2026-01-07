@@ -12,7 +12,7 @@ def get_simple_agent_v1(doc_manager: DocumentManager):
     model = get_chat_model()
 
     prompt_registry = PromptRegistry()
-    prompt : SystemMessage = render_prompt(prompt_registry.get_prompt("simple_agent", "v1"), {})
+    prompt : SystemMessage = SystemMessage(content= render_prompt(prompt_registry.get_prompt("simple_agent", "v1"), {}))
 
     doc_chunk_tool = create_doc_getter(doc_manager)
 
