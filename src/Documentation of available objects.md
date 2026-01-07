@@ -1,4 +1,5 @@
-
+# Guidelines of saving versions
+As a general rule, code of versions that were unsuccesfull to adhere to the minimum requirements is not kept or maintained. It might also change to adapt to later versions.
 
 # Agents
 
@@ -35,14 +36,16 @@ Uses simple_agent_v2 to attempt to extract ISA metadata given a provided documen
 Implement a stateful graph of one planner node, a validation, a schema fetcher, a document reader and an ISA composer node.
 
 *notes*: This is also prototype version 6. 
+*state*: v2
 
 In version 6.1 the planner had no access to a histroy of messages, so it did not know what was done before. It kept making a simple mistake over and over again. Logs of this version can be found under output/stateful_graph/version 6.1 - without history.
 
 For version 6.2 we update the state to include a history and give this to the planner. We see that this prevents the planner from repeating the same mistakes again. However, we notice that the planner and the ISA_updater argue about what to do. The planner instructs the ISA_update to draft something with empty fields to have something to begin with. The ISA_update refuses this because it has not received any evidence yet. In attempt to solve this, we will include a field in the prompt of the ISA_updater with instructions from the planner. This hopefully results in better communication between the agents.
 
-*state*: v2
-
 *prompt used*: planner v1, ISA_updater v1
+
+Version 6.3
+*prompt used*: planner v2, ISA_updater v2.
 
 
 # Tools
