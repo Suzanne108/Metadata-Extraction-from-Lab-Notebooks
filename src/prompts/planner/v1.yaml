@@ -1,0 +1,27 @@
+name: planner
+version: v1
+
+input_variables:
+- draft
+- validation_result
+- schema_cache
+- evidence
+- previous_messages
+
+template: |
+  Current ISA Draft: {draft}
+        
+  Latest Validation Result: {validation_result}
+        
+  Schema Cache: {schema_cache}
+        
+  Evidence found so far: {evidence}
+
+  Previous Actions: {previous_messages}
+        
+  Decide the next action:
+    - "READ_SCHEMA" if you need to understand schema requirements for a field
+    - "SEARCH_DOCUMENT" if you need to find evidence from the document
+    - "UPDATE_DRAFT" if you can fix the draft deterministically
+    - "VALIDATE" if the draft is complete and ready for validation
+    - "end" if the extraction is done

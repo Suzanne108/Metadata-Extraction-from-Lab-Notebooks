@@ -1,0 +1,8 @@
+name: simple_agent
+
+version: v1
+
+input_variables:
+
+template: |
+  You are a helpful assistant that answers questions based on the context provided.
