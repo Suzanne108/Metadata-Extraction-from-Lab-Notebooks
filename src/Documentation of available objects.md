@@ -47,6 +47,11 @@ For version 6.2 we update the state to include a history and give this to the pl
 Version 6.3
 *prompt used*: planner v2, ISA_updater v2.
 
+We incorporated a way for the planner to give instructions to the ISA schema updater. Observations:
+- Token limit exceeded for planner prompt. We will solve this by limiting the 'evidence' field in the prompt to only the keywords that were used to search for the evidence. We will also remove some whitespace.
+- The planner agent instructs to perform 'search_document' action for about the same query. To solve this, we will give the planner prompt stricter instructions on how to act based on the given information, limiting the freedom of the agent.
+- The schema getter functions are not really necessary in the overall workflow, because the isa_updater agent already has access to this tool individually. So in the next iteration, we will remove this as an option for the planner to choose. But then how does the planner know what to search in the document? Maybe this is a design flaw: the planner does not know what to search in the document, because it does not read the schema's. We will solve this problem by wrapping an agent around the schema getter functions. The agent will read the schema and summarize for the planner what kind of information needs to be extracted in order to complete the isa metadata. Since this a major change in the system design, we will move to version 7.
+
 
 # Tools
 

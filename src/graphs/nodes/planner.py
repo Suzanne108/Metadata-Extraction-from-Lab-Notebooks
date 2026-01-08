@@ -1,6 +1,6 @@
 from src.graphs.utils import NextStep
 from src.state.v2 import ISAExtractionStateV2
-from langchain.messages import HumanMessage, AIMessage, ToolMessage
+from langchain.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from src.prompts.renderer import render_prompt
 from src.prompts.registry import PromptRegistry
@@ -8,14 +8,18 @@ from src.prompts.registry import PromptRegistry
 
 import json
 
-def create_planner(model: ChatOpenAI):
+#TODO: refactor so that the inference prompt can be given as argument
 
-    def create_planner_message(response: NextStep) -> AIMessage:
+def create_planner(model: ChatOpenAI, system_prompt: str):
+
+    def create_planner_message(response: NextStep, prompt: str) -> AIMessage:
         "Creates an AIMessage from the NextStep response"
+
+        received_prompt = f"Received information:\n{prompt}\n\n"
         
         content = f"Next Action: {response.action.value}\n"
-        if response.focus:
-            content += f"Focus: {response.focus}\n"
+        if response.instruction:
+            content += f"Instruction: {response.instruction}\n"
         if response.query:
             content += f"Query: {response.query}\n"
         if response.k:
@@ -24,10 +28,10 @@ def create_planner(model: ChatOpenAI):
             content += f"Schema: {response.schema_to_fetch}\n"
         content += f"Rationale: {response.rationale}\n"
 
-        return AIMessage(content=content)
+        return AIMessage(content=content + "\n\n" + received_prompt)
 
 
-    def planner(state: ISAExtractionStateV2) -> dict:
+    def planner(state: ISAExtractionStateV2 ) -> dict:
         "Decides next action based on the current state"
 
         vr = state.get("validation_result") or {}
@@ -54,7 +58,7 @@ def create_planner(model: ChatOpenAI):
         # Call LLM to analyze state and decide next step
 
         registry = PromptRegistry()
-        prompt_template = registry.get_prompt("planner", "v1")
+        prompt_template = registry.get_prompt("planner", "v1-inference")
         prompt = render_prompt(
             prompt_template,
             {
@@ -66,14 +70,13 @@ def create_planner(model: ChatOpenAI):
             }
         )
 
-        print("Planner Prompt:")
-        print(prompt)
+        messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
 
         # Is of type NextStep
-        response = model.invoke(prompt)
+        response = model.invoke(messages)
 
         return {
-            "messages": state.get("messages", []) + [create_planner_message(response)],
+            "messages": state.get("messages", []) + [create_planner_message(response, prompt)],
             "orchestrator_decision": response
         }
 

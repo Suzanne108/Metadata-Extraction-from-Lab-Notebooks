@@ -1,5 +1,5 @@
 name: planner
-version: v1
+version: v1-inference
 
 input_variables:
 - draft
