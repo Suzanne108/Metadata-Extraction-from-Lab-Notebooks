@@ -46,9 +46,11 @@ def create_stateful_graph_workflow() -> StateGraph:
 
     updater_system_prompt = render_prompt(
         registry.get_prompt("ISA_updater", "v2-system"), {})
+    
+    updater_inference_prompt_template = registry.get_prompt("ISA_updater", "v2-inference")
 
     # Create ISA updater node
-    isa_updater = create_ISA_updater(model_updater, updater_system_prompt)
+    isa_updater = create_ISA_updater(model_updater, updater_system_prompt, updater_inference_prompt_template)
 
     graph = StateGraph(ISAExtractionStateV2)
 

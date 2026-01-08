@@ -12,8 +12,10 @@ import json
 
 def create_planner(model: ChatOpenAI, system_prompt: str):
 
-    def create_planner_message(response: NextStep) -> AIMessage:
+    def create_planner_message(response: NextStep, prompt: str) -> AIMessage:
         "Creates an AIMessage from the NextStep response"
+
+        received_prompt = f"Received information:\n{prompt}\n\n"
         
         content = f"Next Action: {response.action.value}\n"
         if response.instruction:
@@ -26,7 +28,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str):
             content += f"Schema: {response.schema_to_fetch}\n"
         content += f"Rationale: {response.rationale}\n"
 
-        return AIMessage(content=content)
+        return AIMessage(content=content + "\n\n" + received_prompt)
 
 
     def planner(state: ISAExtractionStateV2 ) -> dict:
@@ -68,16 +70,13 @@ def create_planner(model: ChatOpenAI, system_prompt: str):
             }
         )
 
-        print("Planner Prompt:")
-        print(prompt)
-
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
 
         # Is of type NextStep
         response = model.invoke(messages)
 
         return {
-            "messages": state.get("messages", []) + [create_planner_message(response)],
+            "messages": state.get("messages", []) + [create_planner_message(response, prompt)],
             "orchestrator_decision": response
         }
 

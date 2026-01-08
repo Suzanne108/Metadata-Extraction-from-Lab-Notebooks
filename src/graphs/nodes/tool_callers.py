@@ -14,7 +14,7 @@ def read_schema(state: ISAExtractionStateV2):
 
         schema_cache = dict(state.get("schema_cache", {}))
 
-        message = f"Succesfully fetched {schema_name.value}"
+        message = f"Succesfully fetched schema {schema_name.value}"
 
         # Add to the schema cache (return a new dict, not the return value of update())
         schema_cache[schema_name.value] = schema
@@ -44,7 +44,7 @@ def create_search_document_caller(search_document_tool: StructuredTool):
             results = search_document_tool(query, k=state['orchestrator_decision'].k or 1)
         else:
             raise TypeError("search_document_tool is not callable and has no .run() method")
-        message = f"Retrieved {len(results)} documents for query: {query}"
+        message = f"For query: {query} \n\n retrieved the following content: \n {results}"
 
         # Copy the evidence dict and update it; dict.update() returns None so avoid using it directly
         evidence = dict(state.get("evidence", {}))

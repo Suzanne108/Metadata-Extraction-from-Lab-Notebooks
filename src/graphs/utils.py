@@ -14,15 +14,15 @@ from langchain_core.runnables import RunnableConfig
 
 class Action(Enum):
     SEARCH_DOCUMENT = "search_document"
-    READ_SCHEMA = "retrieve ISA schema"
-    VALIDATE = "validate current version"
-    UPDATE_DRAFT = "update draft"
+    READ_SCHEMA = "retrieve_ISA_schema"
+    VALIDATE = "validate_current_version"
+    UPDATE_DRAFT = "update_draft"
     STOP = "END"
 
 class Node(Enum):
     SEARCH_DOCUMENT = "search_document"
     READ_SCHEMA = "retrieve_ISA_schema"
-    VALIDATE = "validate"
+    VALIDATE = "validate_current_version"
     UPDATE_DRAFT = "update_draft"
     PLANNER = "planner"
     STOP = "END"
