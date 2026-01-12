@@ -20,9 +20,6 @@ class ISAExtractionStateV2(TypedDict):
     # The latest decision from the orchestrator
     orchestrator_decision: NextStep | None
 
-    # Cached ISA schemas
-    schema_cache: dict[str, dict]
-
     # Evidence per query 
     evidence: dict[str, list[str]] 
 

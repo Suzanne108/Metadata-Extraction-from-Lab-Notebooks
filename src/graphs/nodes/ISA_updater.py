@@ -1,13 +1,15 @@
 
 
+import json
 from src.state.v2 import ISAExtractionStateV2
 from langchain_openai import ChatOpenAI
 from langchain.messages import AIMessage, SystemMessage, HumanMessage
 from src.prompts.registry import PromptRegistry
 from src.prompts.renderer import render_prompt
-from src.graphs.utils import DraftUpdate
+from src.graphs.utils import invoke_model_with_tools
+from typing import List
 
-def create_ISA_updater(model: ChatOpenAI, system_prompt: str, inference_prompt_template: str):
+def create_ISA_updater(model: ChatOpenAI, schema_getter_tools: List, system_prompt: str, inference_prompt_template: str):
 
     def ISA_updater(state: ISAExtractionStateV2) -> dict:
 
@@ -26,12 +28,24 @@ def create_ISA_updater(model: ChatOpenAI, system_prompt: str, inference_prompt_t
 
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
 
-        response : DraftUpdate = model.invoke(messages)
+        # Invoke model with tool-calling support
+        response = invoke_model_with_tools(model, messages, schema_getter_tools, max_iterations=10)
+        
+        print("ISA updater response:", response.content)
 
-        isa_updater_message = f"Updated draft ISA metadata. New draft: {response.updated_draft}, message for planner: {response.message}"
+        # Parse the response and update the state
+        try:
+            isa_updated_draft = json.loads(response.content)
+            isa_updater_message = f"Updated draft ISA metadata. New draft: {json.dumps(isa_updated_draft, indent=2)}"
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON response: {e}")
+            print(f"Response content: {response.content}")
+            # Keep the old draft if parsing fails
+            isa_updated_draft = draft_isa_metadata
+            isa_updater_message = f"Failed to parse updated draft: {str(e)}"
 
         return {
-            "draft_isa_metadata": response.updated_draft,
+            "draft_isa_metadata": isa_updated_draft,
             "messages": state.get("messages", []) +  [AIMessage(content=isa_updater_message)]
         }
 

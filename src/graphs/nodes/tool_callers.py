@@ -2,38 +2,15 @@ from src.state.v2 import ISAExtractionStateV2
 from src.tools import get_schema, validate_ISA_schema
 from langchain.messages import AIMessage, ToolMessage
 from langchain_core.tools import StructuredTool
-
-
-def read_schema(state: ISAExtractionStateV2):
-
-    schema_name= state['orchestrator_decision'].schema_to_fetch
-    
-    # Fetch schema
-    if schema_name is not None:
-        schema = get_schema(schema_name)
-
-        schema_cache = dict(state.get("schema_cache", {}))
-
-        message = f"Succesfully fetched schema {schema_name.value}"
-
-        # Add to the schema cache (return a new dict, not the return value of update())
-        schema_cache[schema_name.value] = schema
-        return {
-            "schema_cache": schema_cache,
-            "messages": state.get("messages", []) + [ToolMessage(content=message, tool_call_id="read_schema")]
-        }
-     
-    else:
-        message = "Define which schema to fetch"
-        
-        return {
-            "messages": state.get("messages", []) + [ToolMessage(content= message, tool_call_id="read_schema")]
-        }
     
 
 def create_search_document_caller(search_document_tool: StructuredTool):
 
     def search_document_caller(state: ISAExtractionStateV2):
+        if not state['orchestrator_decision'].query:
+            return{
+                "messages": state.get("messages", []) + [ToolMessage(content="No query provided for document search.", tool_call_id="search_document")]
+            }
         query = state['orchestrator_decision'].query
 
         # Call the search document tool

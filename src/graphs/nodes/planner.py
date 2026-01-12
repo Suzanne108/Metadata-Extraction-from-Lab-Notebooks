@@ -10,7 +10,7 @@ import json
 
 #TODO: refactor so that the inference prompt can be given as argument
 
-def create_planner(model: ChatOpenAI, system_prompt: str):
+def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
 
     def create_planner_message(response: NextStep, prompt: str) -> AIMessage:
         "Creates an AIMessage from the NextStep response"
@@ -24,11 +24,9 @@ def create_planner(model: ChatOpenAI, system_prompt: str):
             content += f"Query: {response.query}\n"
         if response.k:
             content += f"K: {response.k}\n"
-        if response.schema_to_fetch:
-            content += f"Schema: {response.schema_to_fetch}\n"
         content += f"Rationale: {response.rationale}\n"
 
-        return AIMessage(content=content + "\n\n" + received_prompt)
+        return AIMessage(content=content + "\n" + received_prompt)
 
 
     def planner(state: ISAExtractionStateV2 ) -> dict:
@@ -38,9 +36,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str):
         vr = json.dumps(vr, indent=2)
         draft = state.get("draft_isa_metadata") or {}
         draft = json.dumps(draft, indent=2)
-        schema_cache = state.get("schema_cache") or {}
-        schema_cache = json.dumps(list(schema_cache.keys()), indent=2)
-        evidence = state.get("evidence") or {}
+        evidence = list(state.get("evidence").keys()) or []
         evidence = json.dumps(evidence, indent=2)
 
         previous_messages = []
@@ -58,19 +54,18 @@ def create_planner(model: ChatOpenAI, system_prompt: str):
         # Call LLM to analyze state and decide next step
 
         registry = PromptRegistry()
-        prompt_template = registry.get_prompt("planner", "v1-inference")
+        prompt_template = registry.get_prompt("planner", "v2-inference")
         prompt = render_prompt(
             prompt_template,
             {
                 "draft": draft,
                 "validation_result": vr,
-                "schema_cache": schema_cache,
                 "evidence": evidence,
                 "previous_messages": previous_messages
             }
         )
 
-        messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
+        messages = [SystemMessage(content=system_prompt), SystemMessage(content=policy_prompt), HumanMessage(content=prompt)]
 
         # Is of type NextStep
         response = model.invoke(messages)

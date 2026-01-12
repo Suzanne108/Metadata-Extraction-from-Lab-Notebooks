@@ -27,18 +27,21 @@ def create_schema_getter() -> List:
     
     for schema in Schema:
 
-        @tool(f"get_{schema.name.lower()}_schema")
-        def get_schema(s: Schema = schema) -> Dict:  # Capture schema in closure
-            """Fetches the {schema.value} schema"""
+        def make_tool(schema_instance: Schema):
+             @tool(f"get_{schema_instance.name.lower()}_schema")
+             def get_schema() -> Dict:
+                 """Fetches the {schema_instance.value} schema"""
 
-            try:
-                file_path = s.get_file_path()
-                with open(file_path, "r", encoding="utf-8") as fp:
-                    return json.load(fp)
-            except Exception as e:
-                raise ValueError(f"Failed to load schema JSON: {e}")
+                 try:
+                     file_path = schema_instance.get_file_path()
+                     with open(file_path, "r", encoding="utf-8") as fp:
+                         return json.load(fp)
+                 except Exception as e:
+                     raise ValueError(f"Failed to load schema JSON: {e}")
+             
+             return get_schema
         
-        tools.append(get_schema)
+        tools.append(make_tool(schema))
     
     return tools
 

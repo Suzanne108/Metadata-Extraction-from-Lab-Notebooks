@@ -10,21 +10,93 @@ from src.document_processing import DocumentManager
 from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod
 from IPython.display import display, HTML, Image
 from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import ToolMessage
+from typing import List
+
+
+def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: int = 10):
+    """
+    Invokes a model with tool-calling capability, handling the tool execution loop.
+    
+    Args:
+        model: The language model to invoke (should be bound with tools)
+        messages: Initial list of messages to send to the model
+        tools: List of tool objects that can be invoked
+        max_iterations: Maximum number of tool-calling iterations to prevent infinite loops
+    
+    Returns:
+        The final response from the model after all tool calls are resolved
+    """
+    # Create a map of tool names to tool functions for easy lookup
+    tool_map = {tool.name: tool for tool in tools}
+    
+    iteration = 0
+    response = None
+    
+    while iteration < max_iterations:
+        iteration += 1
+        response = model.invoke(messages)
+        
+        # Check if the response contains tool calls
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            # Add the AI response with tool calls to messages
+            messages.append(response)
+            
+            # Execute each tool call and add results
+            for tool_call in response.tool_calls:
+                tool_name = tool_call['name']
+                tool_args = tool_call.get('args', {})
+                tool_call_id = tool_call['id']
+                
+                # Look up the tool function
+                if tool_name in tool_map:
+                    try:
+                        # Invoke the tool
+                        tool_result = tool_map[tool_name].invoke(tool_args)
+                        
+                        # Add tool result to messages
+                        messages.append(ToolMessage(
+                            content=str(tool_result),
+                            tool_call_id=tool_call_id
+                        ))
+                    except Exception as e:
+                        print(f"Error invoking tool {tool_name}: {e}")
+                        # Add error message as tool response
+                        messages.append(ToolMessage(
+                            content=f"Error: {str(e)}",
+                            tool_call_id=tool_call_id
+                        ))
+                else:
+                    print(f"Warning: Tool {tool_name} not found in tool_map. Available: {list(tool_map.keys())}")
+                    # Still need to add a response for this tool call
+                    messages.append(ToolMessage(
+                        content=f"Error: Tool {tool_name} not found",
+                        tool_call_id=tool_call_id
+                    ))
+        else:
+            # No more tool calls, we have the final response
+            break
+    
+    # If we hit max iterations without a final response
+    if iteration >= max_iterations:
+        print(f"Warning: Hit max iterations ({max_iterations}) in tool-calling loop")
+    
+    return response
 
 
 class Action(Enum):
-    SEARCH_DOCUMENT = "search_document"
-    READ_SCHEMA = "retrieve_ISA_schema"
-    VALIDATE = "validate_current_version"
-    UPDATE_DRAFT = "update_draft"
+    SEARCH_DOCUMENT = "search contextual document"
+    REQUEST_SCHEMA = "schema agent"
+    VALIDATE = "validate current version"
+    UPDATE_DRAFT = "ISA drafting agent"
     STOP = "END"
 
 class Node(Enum):
-    SEARCH_DOCUMENT = "search_document"
-    READ_SCHEMA = "retrieve_ISA_schema"
-    VALIDATE = "validate_current_version"
-    UPDATE_DRAFT = "update_draft"
-    PLANNER = "planner"
+    SEARCH_DOCUMENT = "search contextual document"
+    SCHEMA_SUMMARIZER_AGENT= "schema agent"
+    VALIDATE = "validate current version"
+    UPDATE_DRAFT_AGENT = "ISA drafting agent"
+    PLANNER_AGENT = "planner agent"
     STOP = "END"
 
 
@@ -33,12 +105,7 @@ class NextStep(BaseModel):
     instruction: str | None = Field(description= "In case of action update_draft, the instruction to be given to the ISA updater agent")
     query: str | None = Field(description= "In case of action search_document, the query to search the document with")
     k: int | None = Field(description= "In case of search_document, the amount of semantically relevant pieces to retrieve")
-    schema_to_fetch: Schema | None = Field(description= "In case of action retrieve_ISA_schema, the schema to retrieve")
     rationale: str = Field(description= "The reason for choosing this action")
-
-class DraftUpdate(BaseModel):
-    updated_draft: dict = Field(description= "The updated draft ISA metadata after applying the changes")
-    message: str = Field(description= "The updated message history including the latest LLM response")
 
 
 def index_document() -> DocumentManager:
@@ -89,8 +156,8 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
                         print()
                     elif hasattr(message, "content"):
                         content = message.content
-                        preview = content[:1000] + "..." if len(content) > 1000 else content
-                        content_line = f"   Content: {preview}\n"
+                        #preview = content[:2000] + "..." if len(content) > 2000 else content
+                        content_line = f"   Content: {content}\n"
                         body += content_line
                         print(content_line.strip())
                         print()

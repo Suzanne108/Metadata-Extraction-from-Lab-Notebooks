@@ -45,12 +45,25 @@ For version 6.2 we update the state to include a history and give this to the pl
 *prompt used*: planner v1, ISA_updater v1
 
 Version 6.3
-*prompt used*: planner v2, ISA_updater v2.
+*prompt used*: planner system-v2. inference v1-, ISA_updater system-v2, inference-v2.
 
 We incorporated a way for the planner to give instructions to the ISA schema updater. Observations:
 - Token limit exceeded for planner prompt. We will solve this by limiting the 'evidence' field in the prompt to only the keywords that were used to search for the evidence. We will also remove some whitespace.
 - The planner agent instructs to perform 'search_document' action for about the same query. To solve this, we will give the planner prompt stricter instructions on how to act based on the given information, limiting the freedom of the agent.
 - The schema getter functions are not really necessary in the overall workflow, because the isa_updater agent already has access to this tool individually. So in the next iteration, we will remove this as an option for the planner to choose. But then how does the planner know what to search in the document? Maybe this is a design flaw: the planner does not know what to search in the document, because it does not read the schema's. We will solve this problem by wrapping an agent around the schema getter functions. The agent will read the schema and summarize for the planner what kind of information needs to be extracted in order to complete the isa metadata. Since this a major change in the system design, we will move to version 7.
+
+Version 7.0
+*prompt used*: planner system-v3, policy-v1, inference-v2, ISA_updater system-v3, inference v-2, schema_agent system-v1, inference-v1.
+
+What changed:
+- Agent around schema getter functions, which can answer planner's questions about the schema
+- Changed planner system and inference prompts. Give stricter instructions on how to search document, remove whitespace, limit evidence field
+- state - remove schema cache
+- For planner made a split between system and policy prompt.
+
+Observations:
+- planner agent is going to the same steps (schema agent) with the same argument multiple times. Waste of resources and not progressing. 
+- The planner agent does not seem to properly break down the task, but instead asks for the entire schema all at once.
 
 
 # Tools

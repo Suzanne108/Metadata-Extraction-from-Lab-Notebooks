@@ -1,0 +1,10 @@
+name: schema
+version: v1-inference
+
+input_variables:
+
+- instruction
+
+template: |
+  Answer the following instruction from the planner agent:
+  Instruction: {instruction}

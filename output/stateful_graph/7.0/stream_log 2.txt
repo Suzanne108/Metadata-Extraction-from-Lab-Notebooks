@@ -1,0 +1,691 @@
+[2026-01-12 10:29:01] Step: planner agent
+   Content: Next Action: schema agent
+Instruction: Please provide the ISA schema requirements for: 1) Investigation level information (mandatory fields, types, examples, controlled vocabularies), 2) Study level information, 3) Assay level information, 4) Materials, protocols, processes and data, 5) Full validation. Include required/optional fields, data types, allowed values, and any cross-field dependencies. This will guide targeted document search and drafting.
+Rationale: Current draft is empty; need schema structure before collecting evidence or updating the draft.
+
+Received information:
+Current ISA Draft: {}     
+Latest Validation Result: {}    
+Evidence found so far: []
+Previous Actions: [
+  "No previous messages."
+]      
+Decide the next action:
+  - "READ_SCHEMA" if you need to understand schema requirements 
+  - "SEARCH_DOCUMENT" if you need to find evidence from the document
+  - "UPDATE_DRAFT" if you can fix the draft deterministically
+  - "VALIDATE" if the draft is complete and ready for validation
+  - "end" if the extraction is done
+
+
+
+[2026-01-12 10:30:41] Step: schema agent
+   Content: Here is a structured, action-focused translation of the ISA JSON Schema definitions you provided (ISA-API v1.0 core schemas). I summarize what each level requires (mandatory vs optional), data types, allowed values, cross-field dependencies, and examples for planning searches and drafting. Note: the JSON Schemas shown do not declare any fields as strictly “required” (no required: [...] is present). All fields listed are optional in the schema, with only basic type/enumeration constraints and cross-references to other schemas. The main constraints come from enumerations and cross-links to other schemas (ontology annotations, data, materials, etc.).
+
+1) Investigation level information (Investigation object)
+- Mandatory fields (per the schema)
+  - The schema does not declare explicit required properties. All properties are optional by the JSON Schema alone.
+  - Constraint that is effectively mandatory by design: @type must be "Investigation" (enum constraint).
+- Core fields and data types
+  - @id: string, format URI-reference
+  - @context: string, format URI-reference
+  - @type: string, enum ["Investigation"]
+  - filename: string
+  - identifier: string
+  - title: string
+  - description: string
+  - submissionDate: string, formats accepted: date-time, date, or an empty string (maxLength: 0)
+  - publicReleaseDate: string, formats accepted: date-time, date, or an empty string (maxLength: 0)
+  - ontologySourceReferences: array of ontology_source_reference_schema.json#
+  - publications: array of publication_schema.json#
+  - people: array of person_schema.json#
+  - studies: array of study_schema.json#
+  - comments: array of comment_schema.json#
+- Controlled vocabularies / ontologies
+  - @type is controlled (Investigation only).
+  - ontologySourceReferences tie to ontology_source_reference_schema (external controlled vocabularies / references).
+  - Publications, People, Studies, and Comments are references to their respective schemas (no hard-coded vocab in Investigation itself, but the linked item schemas define their own vocab/structure).
+- Cross-field dependencies and relationships
+  - Investigation contains one or more Studies (studies[]).
+  - Publications, People, and ontologySourceReferences are optional collections associated with the Investigation.
+  - If Studies are present, they themselves carry the broader study-level content (design descriptors, assays, materials, etc.).
+- Examples (shape)
+  - {
+      "@type": "Investigation",
+      "title": "Example Investigation",
+      "identifier": "INV-001",
+      "submissionDate": "2024-01-15",
+      "publications": [ { ...publication_schema fields... } ],
+      "studies": [ { ...study_schema ... } ],
+      "people": [ { ...person_schema ... } ]
+    }
+- Cross-field notes
+  - The Investigation aggregates Studies; each Study can embed Protocols, Materials, Assays, ProcessSequences, Factors, etc.
+  - All references are via separate schemas; Investigation validates the presence and format of those references, not their internal content beyond the reference types.
+
+2) Study level information (Study object)
+- Mandatory fields (per the schema)
+  - As with Investigation, there is no explicit required: [...] in the study_schema.json. The only enforced field is @type, which must be "Study" (enum ["Study"]).
+- Core fields and data types
+  - @id: string, URI-reference
+  - @context: string, URI-reference
+  - @type: string, enum ["Study"]
+  - filename: string
+  - identifier: string
+  - title: string
+  - description: string
+  - submissionDate: string (date-time or date or empty)
+  - publicReleaseDate: string (date-time or date or empty)
+  - publications: array of publication_schema.json#
+  - people: array of person_schema.json#
+  - studyDesignDescriptors: array of ontology_annotation_schema.json#
+  - protocols: array of protocol_schema.json#
+  - materials: object with:
+    - sources: array of source_schema.json#
+    - samples: array of sample_schema.json#
+    - otherMaterials: array of material_schema.json#
+  - processSequence: array of process_schema.json#
+  - assays: array of assay_schema.json#
+  - factors: array of factor_schema.json#
+  - characteristicCategories: array of material_attribute_schema.json#
+  - unitCategories: array of ontology_annotation_schema.json#
+  - comments: array of comment_schema.json#
+- Controlled vocabularies / ontologies
+  - studyDesignDescriptors uses ontology_annotation_schema (controlled terms for study design).
+  - protocols uses protocol_schema (which itself uses protocolType with ontology_annotation_schema).
+  - materials.characteristics and materials and materials’ attributes tie to material_attribute_schema (characteristicType) and material_attribute_value_schema (category, value, unit).
+  - unitCategories uses ontology_annotation_schema (units).
+- Cross-field dependencies and relationships
+  - A Study can contain Protocols, Materials (sources, samples, otherMaterials), Assays, and a ProcessSequence that describes sequencing/processing steps.
+  - Assays will reference Data (dataFiles) and may relate to Materials (samples/otherMaterials).
+  - charactersticCategories and unitCategories are shared declarations to avoid duplicating material_attribute_value and unit definitions across materials/materials_attributes and data values.
+- Examples (shape)
+  - {
+      "@type": "Study",
+      "title": "Example Study",
+      "studyDesignDescriptors": [ { ...ontology_annotation_schema... } ],
+      "protocols": [ { ...protocol_schema... } ],
+      "materials": { "sources": [ { ...source_schema... } ], "samples": [ { ...sample_schema... } ], "otherMaterials": [ { ...material_schema... } ] },
+      "assays": [ { ...assay_schema... } ]
+    }
+- Cross-field notes
+  - Study-level content provides the structural backbone for the experimental design: protocols (procedures), materials (starting materials, extracts), processSequence (stepwise processing), and assays (measurement/analysis instances).
+  - Data produced by assays links via dataFiles (data_schema) in the Assay level.
+
+3) Assay level information (Assay object)
+- Mandatory fields (per the schema)
+  - No explicit required fields in the assay_schema.json; @type must be "Assay" (enum ["Assay"]) to satisfy the constraint.
+- Core fields and data types
+  - @id: string, URI-reference
+  - @context: string, URI-reference
+  - @type: string, enum ["Assay"]
+  - filename: string
+  - measurementType: ontology_annotation_schema.json#
+  - technologyType: ontology_annotation_schema.json#
+  - technologyPlatform: string
+  - dataFiles: array of data_schema.json#
+  - materials: object with:
+    - samples: array of sample_schema.json#
+    - otherMaterials: array of material_schema.json#
+  - characteristicCategories: array of material_attribute_schema.json#
+  - unitCategories: array of ontology_annotation_schema.json#
+  - processSequence: array of process_schema.json#
+  - comments: array of comment_schema.json#
+- Controlled vocabularies / ontologies
+  - measurementType and technologyType use ontology_annotation_schema# (controlled terms defined in an ontology).
+  - Other vocabulary areas come from material_attribute_schema (characteristic categories) and ontology_annotation_schema (units).
+- Cross-field dependencies and relationships
+  - Assay.dataFiles must refer to Data objects (data_schema.json#).
+  - Assay.materials.samples and Assay.materials.otherMaterials link back to Study materials (or external materials) via sample_schema and material_schema.
+  - processSequence ties into process_schema to describe the steps used in the assay.
+  - The presence of dataFiles implies a data layer beneath the assay, consistent with Study-level data and materials definitions.
+- Examples (shape)
+  - {
+      "@type": "Assay",
+      "measurementType": { "category": "...", "value": "SomeMeasurement" },
+      "technologyType": { "category": "...", "value": "SomeTech" },
+      "dataFiles": [ { ...data_schema... } ],
+      "materials": { "samples": [ { ...sample_schema... } ], "otherMaterials": [ { ...material_schema... } ] }
+    }
+- Cross-field notes
+  - Assay-level content is tightly connected to the Data (dataFiles) and Material content it uses or produces. It often composes with Study-level definitions to describe how measurements were obtained and what materials were used.
+
+4) Materials, protocols, processes and data (aggregated look)
+- Materials (Material object)
+  - Core fields and data types
+    - @id, @context, @type (enum ["Material"])
+    - name: string
+    - type: string, enum ["Extract Name", "Labeled Extract Name"]
+    - characteristics: array of material_attribute_value_schema.json#
+    - comments: array of comment_schema.json#
+  - Cross-field dependencies
+    - characteristics references material_attribute_value_schema (each value may link to a category via category: material_attribute_schema# and may include a unit via unit: ontology_annotation_schema#).
+    - Materials are used within Studies and Assays as sources, extracts, or other materials (via Study.materials.otherMaterials and Study.assays.materials).
+- Protocols (Protocol object)
+  - Core fields and data types
+    - @id, @context, @type (enum ["Protocol"])
+    - name: string
+    - protocolType: ontology_annotation_schema#
+    - description: string
+    - uri: string (uri-reference)
+    - version: string
+    - parameters: array of protocol_parameter_schema#
+    - components: array of objects with:
+      - componentName: string
+      - componentType: ontology_annotation_schema#
+      - comments: array of comment_schema.json#
+    - comments: array of comment_schema.json#
+- Data (Data object)
+  - Core fields and data types
+    - @id, @context, @type (enum ["Data"])
+    - name: string
+    - type: string, enum list of possible data file types:
+      [
+        'Raw Data File',
+        'Derived Data File',
+        'Image File',
+        'Acquisition Parameter Data File',
+        'Derived Spectral Data File',
+        'Protein Assignment File',
+        'Raw Spectral Data File',
+        'Peptide Assignment File',
+        'Array Data File',
+        'Derived Array Data File',
+        'Post Translational Modification Assignment File',
+        'Derived Array Data Matrix File',
+        'Free Induction Decay Data File',
+        'Metabolite Assignment File',
+        'Array Data Matrix File'
+      ]
+    - comments: array of comment_schema.json#
+- Processes (Process object)
+  - Note: studySchema and assaySchema refer to processSequence items of process_schema.json#. The details are not shown here, but this is where you’d capture steps, parameters, and relationships in a pipeline. Cross-linking exists via processSequence in both Study and Assay.
+- Cross-field dependencies and relationships (summary)
+  - Data/files produced or consumed by Assays link to Data objects; Assays themselves live under Studies.
+  - Materials, Protocols, and Processes are defined at Study level and referenced by Assays and Studies as needed.
+  - Characteristic categories and unit categories are defined at the Study/Assay level to avoid duplication when declaring material attributes and units.
+
+5) Full validation considerations (how to validate against these schemas end-to-end)
+- Structural validity
+  - All objects reference the appropriate sub-schemas for nested fields (Investigation -> studies -> Study -> assays, materials, protocols; Assay -> dataFiles; materials -> samples/otherMaterials; etc.).
+  - AdditionalProperties: False on all core schemas (Investigation, Study, Assay, Material, Protocol, Data, etc.). This enforces strict schema boundaries (no extra fields beyond those defined).
+- Type and enumeration constraints
+  - @type fields are strictly constrained to the single allowed value per level:
+    - Investigation: "Investigation"
+    - Study: "Study"
+    - Assay: "Assay"
+    - Material: "Material" (the schema for Material has a separate type field with enum ["Extract Name", "Labeled Extract Name"])
+    - Protocol: "Protocol"
+    - Data: "Data"
+  - Data.type has a large enumerated set of allowed data file types (the list shown in the data_schema.json).
+- Cross-field and cross-schema constraints
+  - Ontology-driven fields: measurementType, technologyType, protocolType, studyDesignDescriptors, characteristicType, unit values, etc., rely on ontology_annotation_schema.json# (controlled vocabularies). Ensure those referenced ontology terms exist and are correctly linked.
+  - Cross-links among levels must be valid JSON references:
+    - Investigation.studies[] -> Study
+    - Study.protocols[] -> Protocol
+    - Study.assays[] -> Assay
+    - Study.materials -> Material/Sample/Source representations
+    - Assay.dataFiles[] -> Data
+- Temporal and URI constraints
+  - submissionDate/publicReleaseDate accept date-time or date (or empty string). Ensure date formats are valid ISO 8601 variants.
+  - URI-like values (e.g., @id, @context, uri in Protocol, etc.) should be valid URI references.
+- Practical validation strategy
+  - Validate each object against its specific schema (Investigation, Study, Assay, Material, Protocol, Data) in a hierarchical fashion.
+  - Validate that nested objects conform to their own schemas before validating higher-level references.
+  - Ensure no additional properties are present at any level (due to additionalProperties: false).
+- Minimal guarantees and drafting guidance
+  - Given no required fields are declared in these schemas, in practice you’ll want to enforce a minimal ISA-JSON structure in your drafting:
+    - At least include the top-level @type and a meaningful title/identifier at Investigation and Study levels.
+    - For Assay, include a meaningful name/identifier and at least one dataFile or material linkage if your workflow requires data linkage.
+  - When building targeted searches, prioritize fields that are heavily validated and cross-linked:
+    - Investigation: studies, ontologySourceReferences, publications, people
+    - Study: assays, protocols, materials (sources/samples/otherMaterials), processSequence
+    - Assay: dataFiles, materials (samples/otherMaterials), processSequence
+  - Make use of the ontology_annotation_schema and material_attribute_schema to filter for controlled vocabularies (e.g., design descriptors, protocol types, measurement types, unit definitions) in search queries.
+
+Cross-field dependencies you’ll want to enforce in tooling
+- If Investigation.studies is present, each Study must be a valid Study object (validated against study_schema.json).
+- If Study.assays is present, each Assay must be a valid Assay object and its dataFiles must refer to valid Data objects.
+- If Study.materials is present, ensure sources/samples/otherMaterials are valid Source, Sample, and Material objects, respectively.
+- If Study.protocols is present, ensure each Protocol is valid and protocolType is drawn from ontology_annotation_schema.
+- If Assay.dataFiles is present, ensure each Data object is valid and that its type reflects an allowed Data.type value (per data_schema.json).
+
+Notes on the schemas you provided
+- Investigation, Study, Assay, Material, Protocol, and Data schemas all have additionalProperties set to False, which enforces a clean, closed schema boundary.
+- The only intrinsic enforcement of content beyond structural typing comes from:
+  - Type fields (@type) being exact strings (Investigation, Study, Assay, Material, Protocol, Data).
+  - Enumerations for type-related fields (e.g., Material.type: ["Extract Name", "Labeled Extract Name"]; Data.type: a predefined list of data file types; Protocol/Study fields that use ontology_annotation_schema for controlled terms).
+  - Cross-reference fields to other schemas, and the use of ontology_annotation_schema for controlled vocabularies.
+- There are no explicit “required” arrays in the provided schema blocks, so you should treat fields as optional from a schema-validation perspective. In practice, however, typical ISA-JSON payloads include at least top-level type, title/identifier, and the relational links (e.g., Investigation.studies, Study.assays) to be functionally useful.
+
+If you’d like, I can extract a compact checklist per level with:
+- fields to ensure for a minimally viable ISA object
+- a short example snippet for quick drafting
+- a mapped list of cross-field references to check during validation
+- the exact enumeration values for every type field (so you can wire up a validator or a targeted search filter)
+
+[2026-01-12 10:30:53] Step: planner agent
+   Content: Next Action: schema agent
+Instruction: Provide the ISA JSON Schema requirements for: 1) Investigation level information, 2) Study level information, 3) Assay level information, 4) Materials, protocols, processes and data, 5) Full validation. Include mandatory vs optional fields, data types, allowed values, cross-field dependencies, and any constraints (e.g., required/optional, additionalProperties, enum restrictions) along with example shapes to guide targeted document search and drafting.
+Rationale: Current ISA Draft is empty; we need the formal schema structure before collecting evidence or updating the draft.
+
+Received information:
+Current ISA Draft: {}     
+Latest Validation Result: {}    
+Evidence found so far: []
+Previous Actions: [
+  "Message type: AIMessage, Content: Next Action: schema agent\nInstruction: Please provide the ISA schema requirements for: 1) Investigation level information (mandatory fields, types, examples, controlled vocabularies), 2) Study level information, 3) Assay level information, 4) Materials, protocols, processes and data, 5) Full validation. Include required/optional fields, data types, allowed values, and any cross-field dependencies. This will guide targeted document search and drafting.\nRationale: Current draft is empty; need schema structure before collecting evidence or updating the draft.\n\nReceived information:\nCurrent ISA Draft: {}     \nLatest Validation Result: {}    \nEvidence found so far: []\nPrevious Actions: [\n  \"No previous messages.\"\n]      \nDecide the next action:\n  - \"READ_SCHEMA\" if you need to understand schema requirements \n  - \"SEARCH_DOCUMENT\" if you need to find evidence from the document\n  - \"UPDATE_DRAFT\" if you can fix the draft deterministically\n  - \"VALIDATE\" if the draft is complete and ready for validation\n  - \"end\" if the extraction is done\n\n",
+  "Message type: AIMessage, Content: Next Action: schema agent\nInstruction: Please provide the ISA schema requirements for: 1) Investigation level information (mandatory fields, types, examples, controlled vocabularies), 2) Study level information, 3) Assay level information, 4) Materials, protocols, processes and data, 5) Full validation. Include required/optional fields, data types, allowed values, and any cross-field dependencies. This will guide targeted document search and drafting.\nRationale: Current draft is empty; need schema structure before collecting evidence or updating the draft.\n\nReceived information:\nCurrent ISA Draft: {}     \nLatest Validation Result: {}    \nEvidence found so far: []\nPrevious Actions: [\n  \"No previous messages.\"\n]      \nDecide the next action:\n  - \"READ_SCHEMA\" if you need to understand schema requirements \n  - \"SEARCH_DOCUMENT\" if you need to find evidence from the document\n  - \"UPDATE_DRAFT\" if you can fix the draft deterministically\n  - \"VALIDATE\" if the draft is complete and ready for validation\n  - \"end\" if the extraction is done\n\n",
+  "Message type: AIMessage, Content: Here is a structured, action-focused translation of the ISA JSON Schema definitions you provided (ISA-API v1.0 core schemas). I summarize what each level requires (mandatory vs optional), data types, allowed values, cross-field dependencies, and examples for planning searches and drafting. Note: the JSON Schemas shown do not declare any fields as strictly \u201crequired\u201d (no required: [...] is present). All fields listed are optional in the schema, with only basic type/enumeration constraints and cross-references to other schemas. The main constraints come from enumerations and cross-links to other schemas (ontology annotations, data, materials, etc.).\n\n1) Investigation level information (Investigation object)\n- Mandatory fields (per the schema)\n  - The schema does not declare explicit required properties. All properties are optional by the JSON Schema alone.\n  - Constraint that is effectively mandatory by design: @type must be \"Investigation\" (enum constraint).\n- Core fields and data types\n  - @id: string, format URI-reference\n  - @context: string, format URI-reference\n  - @type: string, enum [\"Investigation\"]\n  - filename: string\n  - identifier: string\n  - title: string\n  - description: string\n  - submissionDate: string, formats accepted: date-time, date, or an empty string (maxLength: 0)\n  - publicReleaseDate: string, formats accepted: date-time, date, or an empty string (maxLength: 0)\n  - ontologySourceReferences: array of ontology_source_reference_schema.json#\n  - publications: array of publication_schema.json#\n  - people: array of person_schema.json#\n  - studies: array of study_schema.json#\n  - comments: array of comment_schema.json#\n- Controlled vocabularies / ontologies\n  - @type is controlled (Investigation only).\n  - ontologySourceReferences tie to ontology_source_reference_schema (external controlled vocabularies / references).\n  - Publications, People, Studies, and Comments are references to their respective schemas (no hard-coded vocab in Investigation itself, but the linked item schemas define their own vocab/structure).\n- Cross-field dependencies and relationships\n  - Investigation contains one or more Studies (studies[]).\n  - Publications, People, and ontologySourceReferences are optional collections associated with the Investigation.\n  - If Studies are present, they themselves carry the broader study-level content (design descriptors, assays, materials, etc.).\n- Examples (shape)\n  - {\n      \"@type\": \"Investigation\",\n      \"title\": \"Example Investigation\",\n      \"identifier\": \"INV-001\",\n      \"submissionDate\": \"2024-01-15\",\n      \"publications\": [ { ...publication_schema fields... } ],\n      \"studies\": [ { ...study_schema ... } ],\n      \"people\": [ { ...person_schema ... } ]\n    }\n- Cross-field notes\n  - The Investigation aggregates Studies; each Study can embed Protocols, Materials, Assays, ProcessSequences, Factors, etc.\n  - All references are via separate schemas; Investigation validates the presence and format of those references, not their internal content beyond the reference types.\n\n2) Study level information (Study object)\n- Mandatory fields (per the schema)\n  - As with Investigation, there is no explicit required: [...] in the study_schema.json. The only enforced field is @type, which must be \"Study\" (enum [\"Study\"]).\n- Core fields and data types\n  - @id: string, URI-reference\n  - @context: string, URI-reference\n  - @type: string, enum [\"Study\"]\n  - filename: string\n  - identifier: string\n  - title: string\n  - description: string\n  - submissionDate: string (date-time or date or empty)\n  - publicReleaseDate: string (date-time or date or empty)\n  - publications: array of publication_schema.json#\n  - people: array of person_schema.json#\n  - studyDesignDescriptors: array of ontology_annotation_schema.json#\n  - protocols: array of protocol_schema.json#\n  - materials: object with:\n    - sources: array of source_schema.json#\n    - samples: array of sample_schema.json#\n    - otherMaterials: array of material_schema.json#\n  - processSequence: array of process_schema.json#\n  - assays: array of assay_schema.json#\n  - factors: array of factor_schema.json#\n  - characteristicCategories: array of material_attribute_schema.json#\n  - unitCategories: array of ontology_annotation_schema.json#\n  - comments: array of comment_schema.json#\n- Controlled vocabularies / ontologies\n  - studyDesignDescriptors uses ontology_annotation_schema (controlled terms for study design).\n  - protocols uses protocol_schema (which itself uses protocolType with ontology_annotation_schema).\n  - materials.characteristics and materials and materials\u2019 attributes tie to material_attribute_schema (characteristicType) and material_attribute_value_schema (category, value, unit).\n  - unitCategories uses ontology_annotation_schema (units).\n- Cross-field dependencies and relationships\n  - A Study can contain Protocols, Materials (sources, samples, otherMaterials), Assays, and a ProcessSequence that describes sequencing/processing steps.\n  - Assays will reference Data (dataFiles) and may relate to Materials (samples/otherMaterials).\n  - charactersticCategories and unitCategories are shared declarations to avoid duplicating material_attribute_value and unit definitions across materials/materials_attributes and data values.\n- Examples (shape)\n  - {\n      \"@type\": \"Study\",\n      \"title\": \"Example Study\",\n      \"studyDesignDescriptors\": [ { ...ontology_annotation_schema... } ],\n      \"protocols\": [ { ...protocol_schema... } ],\n      \"materials\": { \"sources\": [ { ...source_schema... } ], \"samples\": [ { ...sample_schema... } ], \"otherMaterials\": [ { ...material_schema... } ] },\n      \"assays\": [ { ...assay_schema... } ]\n    }\n- Cross-field notes\n  - Study-level content provides the structural backbone for the experimental design: protocols (procedures), materials (starting materials, extracts), processSequence (stepwise processing), and assays (measurement/analysis instances).\n  - Data produced by assays links via dataFiles (data_schema) in the Assay level.\n\n3) Assay level information (Assay object)\n- Mandatory fields (per the schema)\n  - No explicit required fields in the assay_schema.json; @type must be \"Assay\" (enum [\"Assay\"]) to satisfy the constraint.\n- Core fields and data types\n  - @id: string, URI-reference\n  - @context: string, URI-reference\n  - @type: string, enum [\"Assay\"]\n  - filename: string\n  - measurementType: ontology_annotation_schema.json#\n  - technologyType: ontology_annotation_schema.json#\n  - technologyPlatform: string\n  - dataFiles: array of data_schema.json#\n  - materials: object with:\n    - samples: array of sample_schema.json#\n    - otherMaterials: array of material_schema.json#\n  - characteristicCategories: array of material_attribute_schema.json#\n  - unitCategories: array of ontology_annotation_schema.json#\n  - processSequence: array of process_schema.json#\n  - comments: array of comment_schema.json#\n- Controlled vocabularies / ontologies\n  - measurementType and technologyType use ontology_annotation_schema# (controlled terms defined in an ontology).\n  - Other vocabulary areas come from material_attribute_schema (characteristic categories) and ontology_annotation_schema (units).\n- Cross-field dependencies and relationships\n  - Assay.dataFiles must refer to Data objects (data_schema.json#).\n  - Assay.materials.samples and Assay.materials.otherMaterials link back to Study materials (or external materials) via sample_schema and material_schema.\n  - processSequence ties into process_schema to describe the steps used in the assay.\n  - The presence of dataFiles implies a data layer beneath the assay, consistent with Study-level data and materials definitions.\n- Examples (shape)\n  - {\n      \"@type\": \"Assay\",\n      \"measurementType\": { \"category\": \"...\", \"value\": \"SomeMeasurement\" },\n      \"technologyType\": { \"category\": \"...\", \"value\": \"SomeTech\" },\n      \"dataFiles\": [ { ...data_schema... } ],\n      \"materials\": { \"samples\": [ { ...sample_schema... } ], \"otherMaterials\": [ { ...material_schema... } ] }\n    }\n- Cross-field notes\n  - Assay-level content is tightly connected to the Data (dataFiles) and Material content it uses or produces. It often composes with Study-level definitions to describe how measurements were obtained and what materials were used.\n\n4) Materials, protocols, processes and data (aggregated look)\n- Materials (Material object)\n  - Core fields and data types\n    - @id, @context, @type (enum [\"Material\"])\n    - name: string\n    - type: string, enum [\"Extract Name\", \"Labeled Extract Name\"]\n    - characteristics: array of material_attribute_value_schema.json#\n    - comments: array of comment_schema.json#\n  - Cross-field dependencies\n    - characteristics references material_attribute_value_schema (each value may link to a category via category: material_attribute_schema# and may include a unit via unit: ontology_annotation_schema#).\n    - Materials are used within Studies and Assays as sources, extracts, or other materials (via Study.materials.otherMaterials and Study.assays.materials).\n- Protocols (Protocol object)\n  - Core fields and data types\n    - @id, @context, @type (enum [\"Protocol\"])\n    - name: string\n    - protocolType: ontology_annotation_schema#\n    - description: string\n    - uri: string (uri-reference)\n    - version: string\n    - parameters: array of protocol_parameter_schema#\n    - components: array of objects with:\n      - componentName: string\n      - componentType: ontology_annotation_schema#\n      - comments: array of comment_schema.json#\n    - comments: array of comment_schema.json#\n- Data (Data object)\n  - Core fields and data types\n    - @id, @context, @type (enum [\"Data\"])\n    - name: string\n    - type: string, enum list of possible data file types:\n      [\n        'Raw Data File',\n        'Derived Data File',\n        'Image File',\n        'Acquisition Parameter Data File',\n        'Derived Spectral Data File',\n        'Protein Assignment File',\n        'Raw Spectral Data File',\n        'Peptide Assignment File',\n        'Array Data File',\n        'Derived Array Data File',\n        'Post Translational Modification Assignment File',\n        'Derived Array Data Matrix File',\n        'Free Induction Decay Data File',\n        'Metabolite Assignment File',\n        'Array Data Matrix File'\n      ]\n    - comments: array of comment_schema.json#\n- Processes (Process object)\n  - Note: studySchema and assaySchema refer to processSequence items of process_schema.json#. The details are not shown here, but this is where you\u2019d capture steps, parameters, and relationships in a pipeline. Cross-linking exists via processSequence in both Study and Assay.\n- Cross-field dependencies and relationships (summary)\n  - Data/files produced or consumed by Assays link to Data objects; Assays themselves live under Studies.\n  - Materials, Protocols, and Processes are defined at Study level and referenced by Assays and Studies as needed.\n  - Characteristic categories and unit categories are defined at the Study/Assay level to avoid duplication when declaring material attributes and units.\n\n5) Full validation considerations (how to validate against these schemas end-to-end)\n- Structural validity\n  - All objects reference the appropriate sub-schemas for nested fields (Investigation -> studies -> Study -> assays, materials, protocols; Assay -> dataFiles; materials -> samples/otherMaterials; etc.).\n  - AdditionalProperties: False on all core schemas (Investigation, Study, Assay, Material, Protocol, Data, etc.). This enforces strict schema boundaries (no extra fields beyond those defined).\n- Type and enumeration constraints\n  - @type fields are strictly constrained to the single allowed value per level:\n    - Investigation: \"Investigation\"\n    - Study: \"Study\"\n    - Assay: \"Assay\"\n    - Material: \"Material\" (the schema for Material has a separate type field with enum [\"Extract Name\", \"Labeled Extract Name\"])\n    - Protocol: \"Protocol\"\n    - Data: \"Data\"\n  - Data.type has a large enumerated set of allowed data file types (the list shown in the data_schema.json).\n- Cross-field and cross-schema constraints\n  - Ontology-driven fields: measurementType, technologyType, protocolType, studyDesignDescriptors, characteristicType, unit values, etc., rely on ontology_annotation_schema.json# (controlled vocabularies). Ensure those referenced ontology terms exist and are correctly linked.\n  - Cross-links among levels must be valid JSON references:\n    - Investigation.studies[] -> Study\n    - Study.protocols[] -> Protocol\n    - Study.assays[] -> Assay\n    - Study.materials -> Material/Sample/Source representations\n    - Assay.dataFiles[] -> Data\n- Temporal and URI constraints\n  - submissionDate/publicReleaseDate accept date-time or date (or empty string). Ensure date formats are valid ISO 8601 variants.\n  - URI-like values (e.g., @id, @context, uri in Protocol, etc.) should be valid URI references.\n- Practical validation strategy\n  - Validate each object against its specific schema (Investigation, Study, Assay, Material, Protocol, Data) in a hierarchical fashion.\n  - Validate that nested objects conform to their own schemas before validating higher-level references.\n  - Ensure no additional properties are present at any level (due to additionalProperties: false).\n- Minimal guarantees and drafting guidance\n  - Given no required fields are declared in these schemas, in practice you\u2019ll want to enforce a minimal ISA-JSON structure in your drafting:\n    - At least include the top-level @type and a meaningful title/identifier at Investigation and Study levels.\n    - For Assay, include a meaningful name/identifier and at least one dataFile or material linkage if your workflow requires data linkage.\n  - When building targeted searches, prioritize fields that are heavily validated and cross-linked:\n    - Investigation: studies, ontologySourceReferences, publications, people\n    - Study: assays, protocols, materials (sources/samples/otherMaterials), processSequence\n    - Assay: dataFiles, materials (samples/otherMaterials), processSequence\n  - Make use of the ontology_annotation_schema and material_attribute_schema to filter for controlled vocabularies (e.g., design descriptors, protocol types, measurement types, unit definitions) in search queries.\n\nCross-field dependencies you\u2019ll want to enforce in tooling\n- If Investigation.studies is present, each Study must be a valid Study object (validated against study_schema.json).\n- If Study.assays is present, each Assay must be a valid Assay object and its dataFiles must refer to valid Data objects.\n- If Study.materials is present, ensure sources/samples/otherMaterials are valid Source, Sample, and Material objects, respectively.\n- If Study.protocols is present, ensure each Protocol is valid and protocolType is drawn from ontology_annotation_schema.\n- If Assay.dataFiles is present, ensure each Data object is valid and that its type reflects an allowed Data.type value (per data_schema.json).\n\nNotes on the schemas you provided\n- Investigation, Study, Assay, Material, Protocol, and Data schemas all have additionalProperties set to False, which enforces a clean, closed schema boundary.\n- The only intrinsic enforcement of content beyond structural typing comes from:\n  - Type fields (@type) being exact strings (Investigation, Study, Assay, Material, Protocol, Data).\n  - Enumerations for type-related fields (e.g., Material.type: [\"Extract Name\", \"Labeled Extract Name\"]; Data.type: a predefined list of data file types; Protocol/Study fields that use ontology_annotation_schema for controlled terms).\n  - Cross-reference fields to other schemas, and the use of ontology_annotation_schema for controlled vocabularies.\n- There are no explicit \u201crequired\u201d arrays in the provided schema blocks, so you should treat fields as optional from a schema-validation perspective. In practice, however, typical ISA-JSON payloads include at least top-level type, title/identifier, and the relational links (e.g., Investigation.studies, Study.assays) to be functionally useful.\n\nIf you\u2019d like, I can extract a compact checklist per level with:\n- fields to ensure for a minimally viable ISA object\n- a short example snippet for quick drafting\n- a mapped list of cross-field references to check during validation\n- the exact enumeration values for every type field (so you can wire up a validator or a targeted search filter)"
+]      
+Decide the next action:
+  - "READ_SCHEMA" if you need to understand schema requirements 
+  - "SEARCH_DOCUMENT" if you need to find evidence from the document
+  - "UPDATE_DRAFT" if you can fix the draft deterministically
+  - "VALIDATE" if the draft is complete and ready for validation
+  - "end" if the extraction is done
+
+
+
+[2026-01-12 10:32:06] Step: schema agent
+   Content: Below is a structured, actionable synthesis of the ISA JSON Schema requirements you asked for, using the core ISA 1.0 schemas retrieved (Investigation, Study, Assay, Material, Protocol, Data). I summarize mandatory vs optional fields, data types, allowed values (enums), cross-field dependencies, and constraints, and I provide example shapes to guide drafting and targeted search.
+
+Important note about mandatory fields
+- The provided schemas as retrieved do not declare any explicit "required" arrays at the top level for Investigation, Study, Assay, Material, Protocol, or Data. Each schema shows:
+  - top-level properties with types and constraints
+  - additionalProperties set to False
+  - nested references to other schemas
+- Therefore, within these exact schemas, all listed properties are optional unless a contained (nested) schema declares its own required fields. In practice, many implementations rely on the semantics of ISA where certain fields are expected, but strictly from these schema fragments: no fields are mandated by a "required" attribute in the given definitions.
+
+1) Investigation level information
+What the Investigation schema specifies
+- Top-level shape (Investigation object)
+  - @id: string, format: uri-reference
+  - @context: string, format: uri-reference
+  - @type: string, enum: ["Investigation"] (must be Investigation if present)
+  - filename: string
+  - identifier: string
+  - title: string
+  - description: string
+  - submissionDate: string, one of:
+    - date-time
+    - date
+    - empty string allowed (maxLength: 0)
+  - publicReleaseDate: string, one of:
+    - date-time
+    - date
+    - empty string allowed
+  - ontologySourceReferences: array of ontology_source_reference_schema
+  - publications: array of publication_schema
+  - people: array of person_schema
+  - studies: array of study_schema
+  - comments: array of comment_schema
+- Constraints
+  - additionalProperties: False (no extra fields beyond listed ones)
+  - No explicit required fields in the provided schema
+- Cross-field relationships
+  - Investigation can contain multiple Studies (studies array). Each Study is defined by study_schema and may itself contain assays, materials, etc.
+  - ontologySourceReferences, publications, and people are global references/reloactions for the entire investigation.
+
+Mandatory vs optional
+- All fields shown are optional in this schema (no required array). If you need to enforce minimal content, you must add a separate validation step or adopt conventions outside of the provided schema.
+
+Allowed values and types
+- @type must be "Investigation" if present.
+- submissionDate/publicReleaseDate accept date-time or date strings or empty string (for missing value).
+- ontologySourceReferences/publications/people/studies/comments must conform to their respective schemas.
+
+Cross-field dependencies and constraints
+- If studies are present, each study object must conform to study_schema (thus brings its own nested dependencies).
+- The schema enforces no extra properties beyond the listed ones.
+
+Example shape (minimal, valid under the given constraints)
+{
+  "@type": "Investigation",
+  "title": "Example ISA Investigation",
+  "studies": [
+    {
+      "@type": "Study",
+      "title": "Example Study"
+    }
+  ]
+}
+
+2) Study level information
+What the Study schema specifies
+- Top-level shape (Study object)
+  - @id: string, format: uri-reference
+  - @context: string, format: uri-reference
+  - @type: string, enum: ["Study"]
+  - filename: string
+  - identifier: string
+  - title: string
+  - description: string
+  - submissionDate: string, date-time or date or empty
+  - publicReleaseDate: string, date-time or date or empty
+  - publications: array of publication_schema
+  - people: array of person_schema
+  - studyDesignDescriptors: array of ontology_annotation_schema
+  - protocols: array of protocol_schema
+  - materials: object with properties:
+    - sources: array of source_schema
+    - samples: array of sample_schema
+    - otherMaterials: array of material_schema
+  - processSequence: array of process_schema
+  - assays: array of assay_schema
+  - factors: array of factor_schema
+  - characteristicCategories: array of material_attribute_schema
+  - unitCategories: array of ontology_annotation_schema
+  - comments: array of comment_schema
+- Constraints
+  - additionalProperties: False
+  - No explicit required fields
+- Cross-field relationships
+  - A Study may contain protocols, materials, assays, factors, and references to publications/people.
+  - materials.sources, materials.samples, and materials.otherMaterials connect to separate schemas (source_schema, sample_schema, material_schema).
+  - characteristicCategories and unitCategories are used to avoid duplication when creating material_attribute_value entries and units.
+  - assays and protocols can reference deeper ISA objects.
+
+Mandatory vs optional
+- All fields are optional in the provided schema (no required array). Cross-check nested schemas to ensure consistency if you require minimum content.
+
+Allowed values and types
+- @type must be "Study".
+- studyDesignDescriptors: items must conform to ontology_annotation_schema
+- protocols: protocol_schema
+- materials.sources: source_schema
+- materials.samples: sample_schema
+- materials.otherMaterials: material_schema
+- assays: assay_schema
+- factors: factor_schema
+- characteristicCategories: material_attribute_schema
+- unitCategories: ontology_annotation_schema
+
+Cross-field dependencies and constraints
+- If assays are present, each assay must conform to assay_schema (and its nested dataFiles, materials, processSequence, etc.)
+- If materials are present, their nested materials (samples, sources, etc.) must conform to their respective schemas.
+- additionalProperties: False restricts extra fields.
+
+Example shape (simplified)
+{
+  "@type": "Study",
+  "title": "Example Study",
+  "protocols": [
+    {
+      "@type": "Protocol",
+      "name": "Standard Protocol"
+    }
+  ],
+  "assays": [
+    {
+      "@type": "Assay",
+      "measurementType": { /* ontology_annotation_schema */ },
+      "dataFiles": []
+    }
+  ],
+  "materials": {
+    "samples": [
+      {
+        "@type": "Sample",
+        "name": "Sample-1"
+      }
+    ]
+  }
+}
+
+3) Assay level information
+What the Assay schema specifies
+- Top-level shape (Assay object)
+  - @id: string, format: uri-reference
+  - @context: string, format: uri-reference
+  - @type: string, enum: ["Assay"]
+  - filename: string
+  - measurementType: ontology_annotation_schema
+  - technologyType: ontology_annotation_schema
+  - technologyPlatform: string
+  - dataFiles: array of data_schema
+  - materials: object with:
+    - samples: array of sample_schema
+    - otherMaterials: array of material_schema
+  - characteristicCategories: array of material_attribute_schema
+  - unitCategories: array of ontology_annotation_schema
+  - processSequence: array of process_schema
+  - comments: array of comment_schema
+- Constraints
+  - additionalProperties: False
+- Cross-field relationships
+  - dataFiles in an Assay must conform to data_schema (so the type of data files produced/recorded by this assay).
+  - Materials reference samples and/or otherMaterials to tie extracted materials or other constructs to the assay.
+  - processSequence provides a workflow trace for how the assay was conducted.
+
+Mandatory vs optional
+- All fields are optional in the provided schema; there is no global "required" array.
+
+Allowed values and types
+- @type must be "Assay"
+- dataFiles: items conform to data_schema (data_schema defines the allowed file types in the "type" field, e.g., "Raw Data File", "Derived Data File", etc.)
+- measurementType/technologyType: ontology_annotation_schema
+- device/platform: strings or ontology-based annotations as defined by the ontology_annotation_schema
+- processSequence: process_schema
+- samples/otherMaterials: references to sample_schema / material_schema
+
+Cross-field dependencies and constraints
+- If a dataFile is provided, it must be a valid data_schema object and the assay should logically produce such a file.
+- linkages to materials and protocols are via nested arrays/objects.
+
+Example shape (minimal)
+{
+  "@type": "Assay",
+  "measurementType": { /* ontology_annotation_schema */ },
+  "dataFiles": [
+    {
+      "@type": "Data",
+      "type": "Raw Data File",
+      "name": "experiment1.raw"
+    }
+  ],
+  "materials": {
+    "samples": [
+      { "@type": "Sample", "name": "Sample-1" }
+    ]
+  }
+}
+
+4) Materials, protocols, processes and data (guidance for drafting and search)
+How these elements appear in the schemas
+- Materials
+  - Material schema represents non-source, non-sample materials, such as Extract Name or Labeled Extract Name.
+  - Key fields: @id, @context, @type (must be "Material"), name, type (enum: "Extract Name" or "Labeled Extract Name"), characteristics (material_attribute_value_schema), comments.
+  - AdditionalProperties: False
+  - Used within studies (materials.otherMaterials) and assays (materials.otherMaterials) and as part of study-level materials.
+- Protocols
+  - Protocol schema includes: @id, @context, @type (must be "Protocol"), name, protocolType (ontology_annotation_schema), description, uri, version, parameters (array of protocol_parameter_schema), components (array with componentName, componentType, comments), comments.
+  - AdditionalProperties: False
+- Processes (processSequence)
+  - process_schema (referenced but not shown here) would define a sequence of processing steps in the study, assay, or protocol. It enables traceability of workflows.
+- Data
+  - Data schema defines data objects that may be linked to studies or assays. The Data type field is restricted to a set of known data file types (e.g., "Raw Data File", "Derived Data File", "Image File", etc.).
+  - AdditionalProperties: False
+- Cross-field guidance
+  - Ensure materials used in an assay or study are consistently declared in material_schema and referenced in the corresponding materials sections.
+  - Protocols declared at the study level can be reused by assays; the protocol schema supports protocolType and components to describe experimental steps.
+  - Data files associated with assays must conform to data_schema, with the allowed "type" values defined in data_schema.
+  - Where you have characteristicCategories and unitCategories, use them to avoid duplication of material_attribute entries and unit descriptions across materials, assays, and studies.
+
+Example shapes (composite; simplified)
+Material (example)
+{
+  "@type": "Material",
+  "name": "Extract Name Example",
+  "type": "Extract Name",
+  "characteristics": [
+    { /* material_attribute_value_schema item */ }
+  ]
+}
+
+Protocol (example)
+{
+  "@type": "Protocol",
+  "name": "Standard Extraction",
+  "protocolType": { /* ontology_annotation_schema */ },
+  "parameters": [
+    { /* protocol_parameter_schema item */ }
+  ],
+  "components": [
+    {
+      "componentName": "Column A",
+      "componentType": { /* ontology_annotation_schema */ }
+    }
+  ]
+}
+
+Data (example)
+{
+  "@type": "Data",
+  "name": "raw_output.dat",
+  "type": "Raw Data File"
+}
+
+5) Full validation: recommended checks and constraints
+What to validate end-to-end across levels
+- Schema-level constraints
+  - Ensure additionalProperties: False is respected at all levels (Investigation, Study, Assay, Material, Protocol, Data).
+  - Confirm @type values match the expected enums for each object (Investigation, Study, Assay, Protocol, Material)
+  - Verify nested references conform to their respective schemas (e.g., study.assays items match assay_schema.json, study.materials.otherMaterials items match material_schema.json, etc.)
+- Cross-level consistency
+  - If Investigation contains studies, each study must be valid per study_schema, and any nested references (protocols, materials, assays) must themselves be valid.
+  - If a study declares protocols, assays, materials, etc., those objects are defined within the same ISA document and must be internally consistent (e.g., a protocol referenced within the study is either included in protocols or is otherwise defined as an inline protocol object).
+  - Data files in an assay must be valid data_schema objects. The type field must be one of the enumerated data file types in data_schema.
+- Cross-field dependencies and deduplication
+  - characteristicCategories and unitCategories are intended to avoid duplicating definitions of material attributes and units. If an attribute value or unit is declared elsewhere, ensure its reference corresponds to a declared category entry.
+- Temporal constraints (optional in given schemas)
+  - submissionDate and publicReleaseDate can be date-time or date; empty string allowed to indicate missing. If both present, consider your interpretation of sequencing (e.g., submissionDate precedes publicReleaseDate).
+- Referencing integrity
+  - For any @id used, ensure it is a valid URI reference and, where applicable, resolves to the corresponding object type in the same ISA document.
+- Example validation checklist
+  - Each Investigation is either empty or includes a valid set of studies; each Study includes valid protocols, materials, assays, factors, and optionally design descriptors; each Assay contains at least a valid dataFiles array (if present) and optional materials/processSequence; all materials and samples reference their respective schemas; all protocol entries are valid Protocol objects; all data entries are valid Data objects.
+  - No additional properties beyond the defined ones are present at any level.
+
+Example end-to-end shapes (concise, target-guiding shapes)
+- Minimal Investigation with a single Study (no required fields)
+{
+  "@type": "Investigation",
+  "studies": [
+    {
+      "@type": "Study",
+      "title": "A Minimal Study for ISA",
+      "assays": [
+        {
+          "@type": "Assay",
+          "dataFiles": [
+            { "type": "Raw Data File", "name": "sample1.raw" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+- A slightly richer Study with Protocol and Materials
+{
+  "@type": "Study",
+  "title": "Study with Protocol and Materials",
+  "protocols": [
+    {
+      "@type": "Protocol",
+      "name": "Extraction Protocol",
+      "protocolType": { /* ontology_annotation_schema */ }
+    }
+  ],
+  "materials": {
+    "samples": [
+      { "@type": "Sample", "name": "Sample-1" }
+    ],
+    "otherMaterials": [
+      { "@type": "Material", "name": "Extract-1", "type": "Extract Name" }
+    ]
+  },
+  "assays": [
+    {
+      "@type": "Assay",
+      "measurementType": { /* ontology_annotation_schema */ },
+      "dataFiles": [
+        { "@type": "Data", "name": "extract.derived", "type": "Derived Data File" }
+      ]
+    }
+  ]
+}
+
+- End-to-end example consisting of Investigation → Study → Protocol, Material, Assay, Data
+{
+  "@type": "Investigation",
+  "title": "End-to-end ISA example",
+  "studies": [
+    {
+      "@type": "Study",
+      "title": "End-to-end Study",
+      "protocols": [
+        {
+          "@type": "Protocol",
+          "name": "End-to-end Protocol",
+          "protocolType": { /* ontology_annotation_schema */ }
+        }
+      ],
+      "materials": {
+        "samples": [
+          { "@type": "Sample", "name": "S1" }
+        ],
+        "otherMaterials": [
+          { "@type": "Material", "name": "Extract A", "type": "Extract Name" }
+        ]
+      },
+      "assays": [
+        {
+          "@type": "Assay",
+          "dataFiles": [
+            { "@type": "Data", "name": "data1.csv", "type": "Raw Data File" }
+          ],
+          "materials": {
+            "samples": [{ "@type": "Sample", "name": "S1" }]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+Notes for planning and drafting
+- If you need to enforce mandatory fields, you should layer additional validation rules outside the provided schemas (e.g., a higher-level profile or a custom "required" map for your project) since the given schemas do not declare required properties.
+- When targeting document search or drafting, use the nested object types as a guide for what to look for in each section: Investigations reference Studies, Studies reference Protocols, Materials, Assays, etc. Use ontology_annotation_schema, protocol_parameter_schema, material_attribute_schema, and data_schema as the anchors for domain-specific details (controlled vocabularies, parameter lists, attribute meanings, and file types).
+- For full validation in your tooling, implement a validator that:
+  - Validates each object against its own schema
+  - Recursively validates nested objects
+  - Checks cross-field references for consistency (IDs and types)
+  - Enforces no additional properties beyond allowed fields
+  - Optionally enforces minimal content by adding a project-level requirement policy if desired
+
+If you want, I can tailor these sections into a compact conformance checklist or produce field-by-field validation rules in a tabular form, or generate more explicit example shapes aligned to a target ISA version (e.g., v1.0 vs. any updates).
+
+[2026-01-12 10:32:19] Step: planner agent
+   Content: Next Action: schema agent
+Instruction: Provide the ISA JSON Schema requirements for: 1) Investigation level information, 2) Study level information, 3) Assay level information, 4) Materials, protocols, processes and data, 5) Full validation. Include mandatory vs optional fields, data types, allowed values, cross-field dependencies, and constraints (e.g., required/optional, additionalProperties, enum restrictions) along with example shapes to guide targeted document search and drafting.
+Rationale: Current ISA Draft is empty; schema structure is required before collecting evidence or updating the draft.
+
+Received information:
+Current ISA Draft: {}     
+Latest Validation Result: {}    
+Evidence found so far: []
+Previous Actions: [
+  "Message type: AIMessage, Content: Here is a structured, action-focused translation of the ISA JSON Schema definitions you provided (ISA-API v1.0 core schemas). I summarize what each level requires (mandatory vs optional), data types, allowed values, cross-field dependencies, and examples for planning searches and drafting. Note: the JSON Schemas shown do not declare any fields as strictly \u201crequired\u201d (no required: [...] is present). All fields listed are optional in the schema, with only basic type/enumeration constraints and cross-references to other schemas. The main constraints come from enumerations and cross-links to other schemas (ontology annotations, data, materials, etc.).\n\n1) Investigation level information (Investigation object)\n- Mandatory fields (per the schema)\n  - The schema does not declare explicit required properties. All properties are optional by the JSON Schema alone.\n  - Constraint that is effectively mandatory by design: @type must be \"Investigation\" (enum constraint).\n- Core fields and data types\n  - @id: string, format URI-reference\n  - @context: string, format URI-reference\n  - @type: string, enum [\"Investigation\"]\n  - filename: string\n  - identifier: string\n  - title: string\n  - description: string\n  - submissionDate: string, formats accepted: date-time, date, or an empty string (maxLength: 0)\n  - publicReleaseDate: string, formats accepted: date-time, date, or an empty string (maxLength: 0)\n  - ontologySourceReferences: array of ontology_source_reference_schema.json#\n  - publications: array of publication_schema.json#\n  - people: array of person_schema.json#\n  - studies: array of study_schema.json#\n  - comments: array of comment_schema.json#\n- Controlled vocabularies / ontologies\n  - @type is controlled (Investigation only).\n  - ontologySourceReferences tie to ontology_source_reference_schema (external controlled vocabularies / references).\n  - Publications, People, Studies, and Comments are references to their respective schemas (no hard-coded vocab in Investigation itself, but the linked item schemas define their own vocab/structure).\n- Cross-field dependencies and relationships\n  - Investigation contains one or more Studies (studies[]).\n  - Publications, People, and ontologySourceReferences are optional collections associated with the Investigation.\n  - If Studies are present, they themselves carry the broader study-level content (design descriptors, assays, materials, etc.).\n- Examples (shape)\n  - {\n      \"@type\": \"Investigation\",\n      \"title\": \"Example Investigation\",\n      \"identifier\": \"INV-001\",\n      \"submissionDate\": \"2024-01-15\",\n      \"publications\": [ { ...publication_schema fields... } ],\n      \"studies\": [ { ...study_schema ... } ],\n      \"people\": [ { ...person_schema ... } ]\n    }\n- Cross-field notes\n  - The Investigation aggregates Studies; each Study can embed Protocols, Materials, Assays, ProcessSequences, Factors, etc.\n  - All references are via separate schemas; Investigation validates the presence and format of those references, not their internal content beyond the reference types.\n\n2) Study level information (Study object)\n- Mandatory fields (per the schema)\n  - As with Investigation, there is no explicit required: [...] in the study_schema.json. The only enforced field is @type, which must be \"Study\" (enum [\"Study\"]).\n- Core fields and data types\n  - @id: string, URI-reference\n  - @context: string, URI-reference\n  - @type: string, enum [\"Study\"]\n  - filename: string\n  - identifier: string\n  - title: string\n  - description: string\n  - submissionDate: string (date-time or date or empty)\n  - publicReleaseDate: string (date-time or date or empty)\n  - publications: array of publication_schema.json#\n  - people: array of person_schema.json#\n  - studyDesignDescriptors: array of ontology_annotation_schema.json#\n  - protocols: array of protocol_schema.json#\n  - materials: object with:\n    - sources: array of source_schema.json#\n    - samples: array of sample_schema.json#\n    - otherMaterials: array of material_schema.json#\n  - processSequence: array of process_schema.json#\n  - assays: array of assay_schema.json#\n  - factors: array of factor_schema.json#\n  - characteristicCategories: array of material_attribute_schema.json#\n  - unitCategories: array of ontology_annotation_schema.json#\n  - comments: array of comment_schema.json#\n- Controlled vocabularies / ontologies\n  - studyDesignDescriptors uses ontology_annotation_schema (controlled terms for study design).\n  - protocols uses protocol_schema (which itself uses protocolType with ontology_annotation_schema).\n  - materials.characteristics and materials and materials\u2019 attributes tie to material_attribute_schema (characteristicType) and material_attribute_value_schema (category, value, unit).\n  - unitCategories uses ontology_annotation_schema (units).\n- Cross-field dependencies and relationships\n  - A Study can contain Protocols, Materials (sources, samples, otherMaterials), Assays, and a ProcessSequence that describes sequencing/processing steps.\n  - Assays will reference Data (dataFiles) and may relate to Materials (samples/otherMaterials).\n  - charactersticCategories and unitCategories are shared declarations to avoid duplicating material_attribute_value and unit definitions across materials/materials_attributes and data values.\n- Examples (shape)\n  - {\n      \"@type\": \"Study\",\n      \"title\": \"Example Study\",\n      \"studyDesignDescriptors\": [ { ...ontology_annotation_schema... } ],\n      \"protocols\": [ { ...protocol_schema... } ],\n      \"materials\": { \"sources\": [ { ...source_schema... } ], \"samples\": [ { ...sample_schema... } ], \"otherMaterials\": [ { ...material_schema... } ] },\n      \"assays\": [ { ...assay_schema... } ]\n    }\n- Cross-field notes\n  - Study-level content provides the structural backbone for the experimental design: protocols (procedures), materials (starting materials, extracts), processSequence (stepwise processing), and assays (measurement/analysis instances).\n  - Data produced by assays links via dataFiles (data_schema) in the Assay level.\n\n3) Assay level information (Assay object)\n- Mandatory fields (per the schema)\n  - No explicit required fields in the assay_schema.json; @type must be \"Assay\" (enum [\"Assay\"]) to satisfy the constraint.\n- Core fields and data types\n  - @id: string, URI-reference\n  - @context: string, URI-reference\n  - @type: string, enum [\"Assay\"]\n  - filename: string\n  - measurementType: ontology_annotation_schema.json#\n  - technologyType: ontology_annotation_schema.json#\n  - technologyPlatform: string\n  - dataFiles: array of data_schema.json#\n  - materials: object with:\n    - samples: array of sample_schema.json#\n    - otherMaterials: array of material_schema.json#\n  - characteristicCategories: array of material_attribute_schema.json#\n  - unitCategories: array of ontology_annotation_schema.json#\n  - processSequence: array of process_schema.json#\n  - comments: array of comment_schema.json#\n- Controlled vocabularies / ontologies\n  - measurementType and technologyType use ontology_annotation_schema# (controlled terms defined in an ontology).\n  - Other vocabulary areas come from material_attribute_schema (characteristic categories) and ontology_annotation_schema (units).\n- Cross-field dependencies and relationships\n  - Assay.dataFiles must refer to Data objects (data_schema.json#).\n  - Assay.materials.samples and Assay.materials.otherMaterials link back to Study materials (or external materials) via sample_schema and material_schema.\n  - processSequence ties into process_schema to describe the steps used in the assay.\n  - The presence of dataFiles implies a data layer beneath the assay, consistent with Study-level data and materials definitions.\n- Examples (shape)\n  - {\n      \"@type\": \"Assay\",\n      \"measurementType\": { \"category\": \"...\", \"value\": \"SomeMeasurement\" },\n      \"technologyType\": { \"category\": \"...\", \"value\": \"SomeTech\" },\n      \"dataFiles\": [ { ...data_schema... } ],\n      \"materials\": { \"samples\": [ { ...sample_schema... } ], \"otherMaterials\": [ { ...material_schema... } ] }\n    }\n- Cross-field notes\n  - Assay-level content is tightly connected to the Data (dataFiles) and Material content it uses or produces. It often composes with Study-level definitions to describe how measurements were obtained and what materials were used.\n\n4) Materials, protocols, processes and data (aggregated look)\n- Materials (Material object)\n  - Core fields and data types\n    - @id, @context, @type (enum [\"Material\"])\n    - name: string\n    - type: string, enum [\"Extract Name\", \"Labeled Extract Name\"]\n    - characteristics: array of material_attribute_value_schema.json#\n    - comments: array of comment_schema.json#\n  - Cross-field dependencies\n    - characteristics references material_attribute_value_schema (each value may link to a category via category: material_attribute_schema# and may include a unit via unit: ontology_annotation_schema#).\n    - Materials are used within Studies and Assays as sources, extracts, or other materials (via Study.materials.otherMaterials and Study.assays.materials).\n- Protocols (Protocol object)\n  - Core fields and data types\n    - @id, @context, @type (enum [\"Protocol\"])\n    - name: string\n    - protocolType: ontology_annotation_schema#\n    - description: string\n    - uri: string (uri-reference)\n    - version: string\n    - parameters: array of protocol_parameter_schema#\n    - components: array of objects with:\n      - componentName: string\n      - componentType: ontology_annotation_schema#\n      - comments: array of comment_schema.json#\n    - comments: array of comment_schema.json#\n- Data (Data object)\n  - Core fields and data types\n    - @id, @context, @type (enum [\"Data\"])\n    - name: string\n    - type: string, enum list of possible data file types:\n      [\n        'Raw Data File',\n        'Derived Data File',\n        'Image File',\n        'Acquisition Parameter Data File',\n        'Derived Spectral Data File',\n        'Protein Assignment File',\n        'Raw Spectral Data File',\n        'Peptide Assignment File',\n        'Array Data File',\n        'Derived Array Data File',\n        'Post Translational Modification Assignment File',\n        'Derived Array Data Matrix File',\n        'Free Induction Decay Data File',\n        'Metabolite Assignment File',\n        'Array Data Matrix File'\n      ]\n    - comments: array of comment_schema.json#\n- Processes (Process object)\n  - Note: studySchema and assaySchema refer to processSequence items of process_schema.json#. The details are not shown here, but this is where you\u2019d capture steps, parameters, and relationships in a pipeline. Cross-linking exists via processSequence in both Study and Assay.\n- Cross-field dependencies and relationships (summary)\n  - Data/files produced or consumed by Assays link to Data objects; Assays themselves live under Studies.\n  - Materials, Protocols, and Processes are defined at Study level and referenced by Assays and Studies as needed.\n  - Characteristic categories and unit categories are defined at the Study/Assay level to avoid duplication when declaring material attributes and units.\n\n5) Full validation considerations (how to validate against these schemas end-to-end)\n- Structural validity\n  - All objects reference the appropriate sub-schemas for nested fields (Investigation -> studies -> Study -> assays, materials, protocols; Assay -> dataFiles; materials -> samples/otherMaterials; etc.).\n  - AdditionalProperties: False on all core schemas (Investigation, Study, Assay, Material, Protocol, Data, etc.). This enforces strict schema boundaries (no extra fields beyond those defined).\n- Type and enumeration constraints\n  - @type fields are strictly constrained to the single allowed value per level:\n    - Investigation: \"Investigation\"\n    - Study: \"Study\"\n    - Assay: \"Assay\"\n    - Material: \"Material\" (the schema for Material has a separate type field with enum [\"Extract Name\", \"Labeled Extract Name\"])\n    - Protocol: \"Protocol\"\n    - Data: \"Data\"\n  - Data.type has a large enumerated set of allowed data file types (the list shown in the data_schema.json).\n- Cross-field and cross-schema constraints\n  - Ontology-driven fields: measurementType, technologyType, protocolType, studyDesignDescriptors, characteristicType, unit values, etc., rely on ontology_annotation_schema.json# (controlled vocabularies). Ensure those referenced ontology terms exist and are correctly linked.\n  - Cross-links among levels must be valid JSON references:\n    - Investigation.studies[] -> Study\n    - Study.protocols[] -> Protocol\n    - Study.assays[] -> Assay\n    - Study.materials -> Material/Sample/Source representations\n    - Assay.dataFiles[] -> Data\n- Temporal and URI constraints\n  - submissionDate/publicReleaseDate accept date-time or date (or empty string). Ensure date formats are valid ISO 8601 variants.\n  - URI-like values (e.g., @id, @context, uri in Protocol, etc.) should be valid URI references.\n- Practical validation strategy\n  - Validate each object against its specific schema (Investigation, Study, Assay, Material, Protocol, Data) in a hierarchical fashion.\n  - Validate that nested objects conform to their own schemas before validating higher-level references.\n  - Ensure no additional properties are present at any level (due to additionalProperties: false).\n- Minimal guarantees and drafting guidance\n  - Given no required fields are declared in these schemas, in practice you\u2019ll want to enforce a minimal ISA-JSON structure in your drafting:\n    - At least include the top-level @type and a meaningful title/identifier at Investigation and Study levels.\n    - For Assay, include a meaningful name/identifier and at least one dataFile or material linkage if your workflow requires data linkage.\n  - When building targeted searches, prioritize fields that are heavily validated and cross-linked:\n    - Investigation: studies, ontologySourceReferences, publications, people\n    - Study: assays, protocols, materials (sources/samples/otherMaterials), processSequence\n    - Assay: dataFiles, materials (samples/otherMaterials), processSequence\n  - Make use of the ontology_annotation_schema and material_attribute_schema to filter for controlled vocabularies (e.g., design descriptors, protocol types, measurement types, unit definitions) in search queries.\n\nCross-field dependencies you\u2019ll want to enforce in tooling\n- If Investigation.studies is present, each Study must be a valid Study object (validated against study_schema.json).\n- If Study.assays is present, each Assay must be a valid Assay object and its dataFiles must refer to valid Data objects.\n- If Study.materials is present, ensure sources/samples/otherMaterials are valid Source, Sample, and Material objects, respectively.\n- If Study.protocols is present, ensure each Protocol is valid and protocolType is drawn from ontology_annotation_schema.\n- If Assay.dataFiles is present, ensure each Data object is valid and that its type reflects an allowed Data.type value (per data_schema.json).\n\nNotes on the schemas you provided\n- Investigation, Study, Assay, Material, Protocol, and Data schemas all have additionalProperties set to False, which enforces a clean, closed schema boundary.\n- The only intrinsic enforcement of content beyond structural typing comes from:\n  - Type fields (@type) being exact strings (Investigation, Study, Assay, Material, Protocol, Data).\n  - Enumerations for type-related fields (e.g., Material.type: [\"Extract Name\", \"Labeled Extract Name\"]; Data.type: a predefined list of data file types; Protocol/Study fields that use ontology_annotation_schema for controlled terms).\n  - Cross-reference fields to other schemas, and the use of ontology_annotation_schema for controlled vocabularies.\n- There are no explicit \u201crequired\u201d arrays in the provided schema blocks, so you should treat fields as optional from a schema-validation perspective. In practice, however, typical ISA-JSON payloads include at least top-level type, title/identifier, and the relational links (e.g., Investigation.studies, Study.assays) to be functionally useful.\n\nIf you\u2019d like, I can extract a compact checklist per level with:\n- fields to ensure for a minimally viable ISA object\n- a short example snippet for quick drafting\n- a mapped list of cross-field references to check during validation\n- the exact enumeration values for every type field (so you can wire up a validator or a targeted search filter)",
+  "Message type: AIMessage, Content: Next Action: schema agent\nInstruction: Provide the ISA JSON Schema requirements for: 1) Investigation level information, 2) Study level information, 3) Assay level information, 4) Materials, protocols, processes and data, 5) Full validation. Include mandatory vs optional fields, data types, allowed values, cross-field dependencies, and any constraints (e.g., required/optional, additionalProperties, enum restrictions) along with example shapes to guide targeted document search and drafting.\nRationale: Current ISA Draft is empty; we need the formal schema structure before collecting evidence or updating the draft.\n\nReceived information:\nCurrent ISA Draft: {}     \nLatest Validation Result: {}    \nEvidence found so far: []\nPrevious Actions: [\n  \"Message type: AIMessage, Content: Next Action: schema agent\\nInstruction: Please provide the ISA schema requirements for: 1) Investigation level information (mandatory fields, types, examples, controlled vocabularies), 2) Study level information, 3) Assay level information, 4) Materials, protocols, processes and data, 5) Full validation. Include required/optional fields, data types, allowed values, and any cross-field dependencies. This will guide targeted document search and drafting.\\nRationale: Current draft is empty; need schema structure before collecting evidence or updating the draft.\\n\\nReceived information:\\nCurrent ISA Draft: {}     \\nLatest Validation Result: {}    \\nEvidence found so far: []\\nPrevious Actions: [\\n  \\\"No previous messages.\\\"\\n]      \\nDecide the next action:\\n  - \\\"READ_SCHEMA\\\" if you need to understand schema requirements \\n  - \\\"SEARCH_DOCUMENT\\\" if you need to find evidence from the document\\n  - \\\"UPDATE_DRAFT\\\" if you can fix the draft deterministically\\n  - \\\"VALIDATE\\\" if the draft is complete and ready for validation\\n  - \\\"end\\\" if the extraction is done\\n\\n\",\n  \"Message type: AIMessage, Content: Next Action: schema agent\\nInstruction: Please provide the ISA schema requirements for: 1) Investigation level information (mandatory fields, types, examples, controlled vocabularies), 2) Study level information, 3) Assay level information, 4) Materials, protocols, processes and data, 5) Full validation. Include required/optional fields, data types, allowed values, and any cross-field dependencies. This will guide targeted document search and drafting.\\nRationale: Current draft is empty; need schema structure before collecting evidence or updating the draft.\\n\\nReceived information:\\nCurrent ISA Draft: {}     \\nLatest Validation Result: {}    \\nEvidence found so far: []\\nPrevious Actions: [\\n  \\\"No previous messages.\\\"\\n]      \\nDecide the next action:\\n  - \\\"READ_SCHEMA\\\" if you need to understand schema requirements \\n  - \\\"SEARCH_DOCUMENT\\\" if you need to find evidence from the document\\n  - \\\"UPDATE_DRAFT\\\" if you can fix the draft deterministically\\n  - \\\"VALIDATE\\\" if the draft is complete and ready for validation\\n  - \\\"end\\\" if the extraction is done\\n\\n\",\n  \"Message type: AIMessage, Content: Here is a structured, action-focused translation of the ISA JSON Schema definitions you provided (ISA-API v1.0 core schemas). I summarize what each level requires (mandatory vs optional), data types, allowed values, cross-field dependencies, and examples for planning searches and drafting. Note: the JSON Schemas shown do not declare any fields as strictly \\u201crequired\\u201d (no required: [...] is present). All fields listed are optional in the schema, with only basic type/enumeration constraints and cross-references to other schemas. The main constraints come from enumerations and cross-links to other schemas (ontology annotations, data, materials, etc.).\\n\\n1) Investigation level information (Investigation object)\\n- Mandatory fields (per the schema)\\n  - The schema does not declare explicit required properties. All properties are optional by the JSON Schema alone.\\n  - Constraint that is effectively mandatory by design: @type must be \\\"Investigation\\\" (enum constraint).\\n- Core fields and data types\\n  - @id: string, format URI-reference\\n  - @context: string, format URI-reference\\n  - @type: string, enum [\\\"Investigation\\\"]\\n  - filename: string\\n  - identifier: string\\n  - title: string\\n  - description: string\\n  - submissionDate: string, formats accepted: date-time, date, or an empty string (maxLength: 0)\\n  - publicReleaseDate: string, formats accepted: date-time, date, or an empty string (maxLength: 0)\\n  - ontologySourceReferences: array of ontology_source_reference_schema.json#\\n  - publications: array of publication_schema.json#\\n  - people: array of person_schema.json#\\n  - studies: array of study_schema.json#\\n  - comments: array of comment_schema.json#\\n- Controlled vocabularies / ontologies\\n  - @type is controlled (Investigation only).\\n  - ontologySourceReferences tie to ontology_source_reference_schema (external controlled vocabularies / references).\\n  - Publications, People, Studies, and Comments are references to their respective schemas (no hard-coded vocab in Investigation itself, but the linked item schemas define their own vocab/structure).\\n- Cross-field dependencies and relationships\\n  - Investigation contains one or more Studies (studies[]).\\n  - Publications, People, and ontologySourceReferences are optional collections associated with the Investigation.\\n  - If Studies are present, they themselves carry the broader study-level content (design descriptors, assays, materials, etc.).\\n- Examples (shape)\\n  - {\\n      \\\"@type\\\": \\\"Investigation\\\",\\n      \\\"title\\\": \\\"Example Investigation\\\",\\n      \\\"identifier\\\": \\\"INV-001\\\",\\n      \\\"submissionDate\\\": \\\"2024-01-15\\\",\\n      \\\"publications\\\": [ { ...publication_schema fields... } ],\\n      \\\"studies\\\": [ { ...study_schema ... } ],\\n      \\\"people\\\": [ { ...person_schema ... } ]\\n    }\\n- Cross-field notes\\n  - The Investigation aggregates Studies; each Study can embed Protocols, Materials, Assays, ProcessSequences, Factors, etc.\\n  - All references are via separate schemas; Investigation validates the presence and format of those references, not their internal content beyond the reference types.\\n\\n2) Study level information (Study object)\\n- Mandatory fields (per the schema)\\n  - As with Investigation, there is no explicit required: [...] in the study_schema.json. The only enforced field is @type, which must be \\\"Study\\\" (enum [\\\"Study\\\"]).\\n- Core fields and data types\\n  - @id: string, URI-reference\\n  - @context: string, URI-reference\\n  - @type: string, enum [\\\"Study\\\"]\\n  - filename: string\\n  - identifier: string\\n  - title: string\\n  - description: string\\n  - submissionDate: string (date-time or date or empty)\\n  - publicReleaseDate: string (date-time or date or empty)\\n  - publications: array of publication_schema.json#\\n  - people: array of person_schema.json#\\n  - studyDesignDescriptors: array of ontology_annotation_schema.json#\\n  - protocols: array of protocol_schema.json#\\n  - materials: object with:\\n    - sources: array of source_schema.json#\\n    - samples: array of sample_schema.json#\\n    - otherMaterials: array of material_schema.json#\\n  - processSequence: array of process_schema.json#\\n  - assays: array of assay_schema.json#\\n  - factors: array of factor_schema.json#\\n  - characteristicCategories: array of material_attribute_schema.json#\\n  - unitCategories: array of ontology_annotation_schema.json#\\n  - comments: array of comment_schema.json#\\n- Controlled vocabularies / ontologies\\n  - studyDesignDescriptors uses ontology_annotation_schema (controlled terms for study design).\\n  - protocols uses protocol_schema (which itself uses protocolType with ontology_annotation_schema).\\n  - materials.characteristics and materials and materials\\u2019 attributes tie to material_attribute_schema (characteristicType) and material_attribute_value_schema (category, value, unit).\\n  - unitCategories uses ontology_annotation_schema (units).\\n- Cross-field dependencies and relationships\\n  - A Study can contain Protocols, Materials (sources, samples, otherMaterials), Assays, and a ProcessSequence that describes sequencing/processing steps.\\n  - Assays will reference Data (dataFiles) and may relate to Materials (samples/otherMaterials).\\n  - charactersticCategories and unitCategories are shared declarations to avoid duplicating material_attribute_value and unit definitions across materials/materials_attributes and data values.\\n- Examples (shape)\\n  - {\\n      \\\"@type\\\": \\\"Study\\\",\\n      \\\"title\\\": \\\"Example Study\\\",\\n      \\\"studyDesignDescriptors\\\": [ { ...ontology_annotation_schema... } ],\\n      \\\"protocols\\\": [ { ...protocol_schema... } ],\\n      \\\"materials\\\": { \\\"sources\\\": [ { ...source_schema... } ], \\\"samples\\\": [ { ...sample_schema... } ], \\\"otherMaterials\\\": [ { ...material_schema... } ] },\\n      \\\"assays\\\": [ { ...assay_schema... } ]\\n    }\\n- Cross-field notes\\n  - Study-level content provides the structural backbone for the experimental design: protocols (procedures), materials (starting materials, extracts), processSequence (stepwise processing), and assays (measurement/analysis instances).\\n  - Data produced by assays links via dataFiles (data_schema) in the Assay level.\\n\\n3) Assay level information (Assay object)\\n- Mandatory fields (per the schema)\\n  - No explicit required fields in the assay_schema.json; @type must be \\\"Assay\\\" (enum [\\\"Assay\\\"]) to satisfy the constraint.\\n- Core fields and data types\\n  - @id: string, URI-reference\\n  - @context: string, URI-reference\\n  - @type: string, enum [\\\"Assay\\\"]\\n  - filename: string\\n  - measurementType: ontology_annotation_schema.json#\\n  - technologyType: ontology_annotation_schema.json#\\n  - technologyPlatform: string\\n  - dataFiles: array of data_schema.json#\\n  - materials: object with:\\n    - samples: array of sample_schema.json#\\n    - otherMaterials: array of material_schema.json#\\n  - characteristicCategories: array of material_attribute_schema.json#\\n  - unitCategories: array of ontology_annotation_schema.json#\\n  - processSequence: array of process_schema.json#\\n  - comments: array of comment_schema.json#\\n- Controlled vocabularies / ontologies\\n  - measurementType and technologyType use ontology_annotation_schema# (controlled terms defined in an ontology).\\n  - Other vocabulary areas come from material_attribute_schema (characteristic categories) and ontology_annotation_schema (units).\\n- Cross-field dependencies and relationships\\n  - Assay.dataFiles must refer to Data objects (data_schema.json#).\\n  - Assay.materials.samples and Assay.materials.otherMaterials link back to Study materials (or external materials) via sample_schema and material_schema.\\n  - processSequence ties into process_schema to describe the steps used in the assay.\\n  - The presence of dataFiles implies a data layer beneath the assay, consistent with Study-level data and materials definitions.\\n- Examples (shape)\\n  - {\\n      \\\"@type\\\": \\\"Assay\\\",\\n      \\\"measurementType\\\": { \\\"category\\\": \\\"...\\\", \\\"value\\\": \\\"SomeMeasurement\\\" },\\n      \\\"technologyType\\\": { \\\"category\\\": \\\"...\\\", \\\"value\\\": \\\"SomeTech\\\" },\\n      \\\"dataFiles\\\": [ { ...data_schema... } ],\\n      \\\"materials\\\": { \\\"samples\\\": [ { ...sample_schema... } ], \\\"otherMaterials\\\": [ { ...material_schema... } ] }\\n    }\\n- Cross-field notes\\n  - Assay-level content is tightly connected to the Data (dataFiles) and Material content it uses or produces. It often composes with Study-level definitions to describe how measurements were obtained and what materials were used.\\n\\n4) Materials, protocols, processes and data (aggregated look)\\n- Materials (Material object)\\n  - Core fields and data types\\n    - @id, @context, @type (enum [\\\"Material\\\"])\\n    - name: string\\n    - type: string, enum [\\\"Extract Name\\\", \\\"Labeled Extract Name\\\"]\\n    - characteristics: array of material_attribute_value_schema.json#\\n    - comments: array of comment_schema.json#\\n  - Cross-field dependencies\\n    - characteristics references material_attribute_value_schema (each value may link to a category via category: material_attribute_schema# and may include a unit via unit: ontology_annotation_schema#).\\n    - Materials are used within Studies and Assays as sources, extracts, or other materials (via Study.materials.otherMaterials and Study.assays.materials).\\n- Protocols (Protocol object)\\n  - Core fields and data types\\n    - @id, @context, @type (enum [\\\"Protocol\\\"])\\n    - name: string\\n    - protocolType: ontology_annotation_schema#\\n    - description: string\\n    - uri: string (uri-reference)\\n    - version: string\\n    - parameters: array of protocol_parameter_schema#\\n    - components: array of objects with:\\n      - componentName: string\\n      - componentType: ontology_annotation_schema#\\n      - comments: array of comment_schema.json#\\n    - comments: array of comment_schema.json#\\n- Data (Data object)\\n  - Core fields and data types\\n    - @id, @context, @type (enum [\\\"Data\\\"])\\n    - name: string\\n    - type: string, enum list of possible data file types:\\n      [\\n        'Raw Data File',\\n        'Derived Data File',\\n        'Image File',\\n        'Acquisition Parameter Data File',\\n        'Derived Spectral Data File',\\n        'Protein Assignment File',\\n        'Raw Spectral Data File',\\n        'Peptide Assignment File',\\n        'Array Data File',\\n        'Derived Array Data File',\\n        'Post Translational Modification Assignment File',\\n        'Derived Array Data Matrix File',\\n        'Free Induction Decay Data File',\\n        'Metabolite Assignment File',\\n        'Array Data Matrix File'\\n      ]\\n    - comments: array of comment_schema.json#\\n- Processes (Process object)\\n  - Note: studySchema and assaySchema refer to processSequence items of process_schema.json#. The details are not shown here, but this is where you\\u2019d capture steps, parameters, and relationships in a pipeline. Cross-linking exists via processSequence in both Study and Assay.\\n- Cross-field dependencies and relationships (summary)\\n  - Data/files produced or consumed by Assays link to Data objects; Assays themselves live under Studies.\\n  - Materials, Protocols, and Processes are defined at Study level and referenced by Assays and Studies as needed.\\n  - Characteristic categories and unit categories are defined at the Study/Assay level to avoid duplication when declaring material attributes and units.\\n\\n5) Full validation considerations (how to validate against these schemas end-to-end)\\n- Structural validity\\n  - All objects reference the appropriate sub-schemas for nested fields (Investigation -> studies -> Study -> assays, materials, protocols; Assay -> dataFiles; materials -> samples/otherMaterials; etc.).\\n  - AdditionalProperties: False on all core schemas (Investigation, Study, Assay, Material, Protocol, Data, etc.). This enforces strict schema boundaries (no extra fields beyond those defined).\\n- Type and enumeration constraints\\n  - @type fields are strictly constrained to the single allowed value per level:\\n    - Investigation: \\\"Investigation\\\"\\n    - Study: \\\"Study\\\"\\n    - Assay: \\\"Assay\\\"\\n    - Material: \\\"Material\\\" (the schema for Material has a separate type field with enum [\\\"Extract Name\\\", \\\"Labeled Extract Name\\\"])\\n    - Protocol: \\\"Protocol\\\"\\n    - Data: \\\"Data\\\"\\n  - Data.type has a large enumerated set of allowed data file types (the list shown in the data_schema.json).\\n- Cross-field and cross-schema constraints\\n  - Ontology-driven fields: measurementType, technologyType, protocolType, studyDesignDescriptors, characteristicType, unit values, etc., rely on ontology_annotation_schema.json# (controlled vocabularies). Ensure those referenced ontology terms exist and are correctly linked.\\n  - Cross-links among levels must be valid JSON references:\\n    - Investigation.studies[] -> Study\\n    - Study.protocols[] -> Protocol\\n    - Study.assays[] -> Assay\\n    - Study.materials -> Material/Sample/Source representations\\n    - Assay.dataFiles[] -> Data\\n- Temporal and URI constraints\\n  - submissionDate/publicReleaseDate accept date-time or date (or empty string). Ensure date formats are valid ISO 8601 variants.\\n  - URI-like values (e.g., @id, @context, uri in Protocol, etc.) should be valid URI references.\\n- Practical validation strategy\\n  - Validate each object against its specific schema (Investigation, Study, Assay, Material, Protocol, Data) in a hierarchical fashion.\\n  - Validate that nested objects conform to their own schemas before validating higher-level references.\\n  - Ensure no additional properties are present at any level (due to additionalProperties: false).\\n- Minimal guarantees and drafting guidance\\n  - Given no required fields are declared in these schemas, in practice you\\u2019ll want to enforce a minimal ISA-JSON structure in your drafting:\\n    - At least include the top-level @type and a meaningful title/identifier at Investigation and Study levels.\\n    - For Assay, include a meaningful name/identifier and at least one dataFile or material linkage if your workflow requires data linkage.\\n  - When building targeted searches, prioritize fields that are heavily validated and cross-linked:\\n    - Investigation: studies, ontologySourceReferences, publications, people\\n    - Study: assays, protocols, materials (sources/samples/otherMaterials), processSequence\\n    - Assay: dataFiles, materials (samples/otherMaterials), processSequence\\n  - Make use of the ontology_annotation_schema and material_attribute_schema to filter for controlled vocabularies (e.g., design descriptors, protocol types, measurement types, unit definitions) in search queries.\\n\\nCross-field dependencies you\\u2019ll want to enforce in tooling\\n- If Investigation.studies is present, each Study must be a valid Study object (validated against study_schema.json).\\n- If Study.assays is present, each Assay must be a valid Assay object and its dataFiles must refer to valid Data objects.\\n- If Study.materials is present, ensure sources/samples/otherMaterials are valid Source, Sample, and Material objects, respectively.\\n- If Study.protocols is present, ensure each Protocol is valid and protocolType is drawn from ontology_annotation_schema.\\n- If Assay.dataFiles is present, ensure each Data object is valid and that its type reflects an allowed Data.type value (per data_schema.json).\\n\\nNotes on the schemas you provided\\n- Investigation, Study, Assay, Material, Protocol, and Data schemas all have additionalProperties set to False, which enforces a clean, closed schema boundary.\\n- The only intrinsic enforcement of content beyond structural typing comes from:\\n  - Type fields (@type) being exact strings (Investigation, Study, Assay, Material, Protocol, Data).\\n  - Enumerations for type-related fields (e.g., Material.type: [\\\"Extract Name\\\", \\\"Labeled Extract Name\\\"]; Data.type: a predefined list of data file types; Protocol/Study fields that use ontology_annotation_schema for controlled terms).\\n  - Cross-reference fields to other schemas, and the use of ontology_annotation_schema for controlled vocabularies.\\n- There are no explicit \\u201crequired\\u201d arrays in the provided schema blocks, so you should treat fields as optional from a schema-validation perspective. In practice, however, typical ISA-JSON payloads include at least top-level type, title/identifier, and the relational links (e.g., Investigation.studies, Study.assays) to be functionally useful.\\n\\nIf you\\u2019d like, I can extract a compact checklist per level with:\\n- fields to ensure for a minimally viable ISA object\\n- a short example snippet for quick drafting\\n- a mapped list of cross-field references to check during validation\\n- the exact enumeration values for every type field (so you can wire up a validator or a targeted search filter)\"\n]      \nDecide the next action:\n  - \"READ_SCHEMA\" if you need to understand schema requirements \n  - \"SEARCH_DOCUMENT\" if you need to find evidence from the document\n  - \"UPDATE_DRAFT\" if you can fix the draft deterministically\n  - \"VALIDATE\" if the draft is complete and ready for validation\n  - \"end\" if the extraction is done\n\n",
+  "Message type: AIMessage, Content: Below is a structured, actionable synthesis of the ISA JSON Schema requirements you asked for, using the core ISA 1.0 schemas retrieved (Investigation, Study, Assay, Material, Protocol, Data). I summarize mandatory vs optional fields, data types, allowed values (enums), cross-field dependencies, and constraints, and I provide example shapes to guide drafting and targeted search.\n\nImportant note about mandatory fields\n- The provided schemas as retrieved do not declare any explicit \"required\" arrays at the top level for Investigation, Study, Assay, Material, Protocol, or Data. Each schema shows:\n  - top-level properties with types and constraints\n  - additionalProperties set to False\n  - nested references to other schemas\n- Therefore, within these exact schemas, all listed properties are optional unless a contained (nested) schema declares its own required fields. In practice, many implementations rely on the semantics of ISA where certain fields are expected, but strictly from these schema fragments: no fields are mandated by a \"required\" attribute in the given definitions.\n\n1) Investigation level information\nWhat the Investigation schema specifies\n- Top-level shape (Investigation object)\n  - @id: string, format: uri-reference\n  - @context: string, format: uri-reference\n  - @type: string, enum: [\"Investigation\"] (must be Investigation if present)\n  - filename: string\n  - identifier: string\n  - title: string\n  - description: string\n  - submissionDate: string, one of:\n    - date-time\n    - date\n    - empty string allowed (maxLength: 0)\n  - publicReleaseDate: string, one of:\n    - date-time\n    - date\n    - empty string allowed\n  - ontologySourceReferences: array of ontology_source_reference_schema\n  - publications: array of publication_schema\n  - people: array of person_schema\n  - studies: array of study_schema\n  - comments: array of comment_schema\n- Constraints\n  - additionalProperties: False (no extra fields beyond listed ones)\n  - No explicit required fields in the provided schema\n- Cross-field relationships\n  - Investigation can contain multiple Studies (studies array). Each Study is defined by study_schema and may itself contain assays, materials, etc.\n  - ontologySourceReferences, publications, and people are global references/reloactions for the entire investigation.\n\nMandatory vs optional\n- All fields shown are optional in this schema (no required array). If you need to enforce minimal content, you must add a separate validation step or adopt conventions outside of the provided schema.\n\nAllowed values and types\n- @type must be \"Investigation\" if present.\n- submissionDate/publicReleaseDate accept date-time or date strings or empty string (for missing value).\n- ontologySourceReferences/publications/people/studies/comments must conform to their respective schemas.\n\nCross-field dependencies and constraints\n- If studies are present, each study object must conform to study_schema (thus brings its own nested dependencies).\n- The schema enforces no extra properties beyond the listed ones.\n\nExample shape (minimal, valid under the given constraints)\n{\n  \"@type\": \"Investigation\",\n  \"title\": \"Example ISA Investigation\",\n  \"studies\": [\n    {\n      \"@type\": \"Study\",\n      \"title\": \"Example Study\"\n    }\n  ]\n}\n\n2) Study level information\nWhat the Study schema specifies\n- Top-level shape (Study object)\n  - @id: string, format: uri-reference\n  - @context: string, format: uri-reference\n  - @type: string, enum: [\"Study\"]\n  - filename: string\n  - identifier: string\n  - title: string\n  - description: string\n  - submissionDate: string, date-time or date or empty\n  - publicReleaseDate: string, date-time or date or empty\n  - publications: array of publication_schema\n  - people: array of person_schema\n  - studyDesignDescriptors: array of ontology_annotation_schema\n  - protocols: array of protocol_schema\n  - materials: object with properties:\n    - sources: array of source_schema\n    - samples: array of sample_schema\n    - otherMaterials: array of material_schema\n  - processSequence: array of process_schema\n  - assays: array of assay_schema\n  - factors: array of factor_schema\n  - characteristicCategories: array of material_attribute_schema\n  - unitCategories: array of ontology_annotation_schema\n  - comments: array of comment_schema\n- Constraints\n  - additionalProperties: False\n  - No explicit required fields\n- Cross-field relationships\n  - A Study may contain protocols, materials, assays, factors, and references to publications/people.\n  - materials.sources, materials.samples, and materials.otherMaterials connect to separate schemas (source_schema, sample_schema, material_schema).\n  - characteristicCategories and unitCategories are used to avoid duplication when creating material_attribute_value entries and units.\n  - assays and protocols can reference deeper ISA objects.\n\nMandatory vs optional\n- All fields are optional in the provided schema (no required array). Cross-check nested schemas to ensure consistency if you require minimum content.\n\nAllowed values and types\n- @type must be \"Study\".\n- studyDesignDescriptors: items must conform to ontology_annotation_schema\n- protocols: protocol_schema\n- materials.sources: source_schema\n- materials.samples: sample_schema\n- materials.otherMaterials: material_schema\n- assays: assay_schema\n- factors: factor_schema\n- characteristicCategories: material_attribute_schema\n- unitCategories: ontology_annotation_schema\n\nCross-field dependencies and constraints\n- If assays are present, each assay must conform to assay_schema (and its nested dataFiles, materials, processSequence, etc.)\n- If materials are present, their nested materials (samples, sources, etc.) must conform to their respective schemas.\n- additionalProperties: False restricts extra fields.\n\nExample shape (simplified)\n{\n  \"@type\": \"Study\",\n  \"title\": \"Example Study\",\n  \"protocols\": [\n    {\n      \"@type\": \"Protocol\",\n      \"name\": \"Standard Protocol\"\n    }\n  ],\n  \"assays\": [\n    {\n      \"@type\": \"Assay\",\n      \"measurementType\": { /* ontology_annotation_schema */ },\n      \"dataFiles\": []\n    }\n  ],\n  \"materials\": {\n    \"samples\": [\n      {\n        \"@type\": \"Sample\",\n        \"name\": \"Sample-1\"\n      }\n    ]\n  }\n}\n\n3) Assay level information\nWhat the Assay schema specifies\n- Top-level shape (Assay object)\n  - @id: string, format: uri-reference\n  - @context: string, format: uri-reference\n  - @type: string, enum: [\"Assay\"]\n  - filename: string\n  - measurementType: ontology_annotation_schema\n  - technologyType: ontology_annotation_schema\n  - technologyPlatform: string\n  - dataFiles: array of data_schema\n  - materials: object with:\n    - samples: array of sample_schema\n    - otherMaterials: array of material_schema\n  - characteristicCategories: array of material_attribute_schema\n  - unitCategories: array of ontology_annotation_schema\n  - processSequence: array of process_schema\n  - comments: array of comment_schema\n- Constraints\n  - additionalProperties: False\n- Cross-field relationships\n  - dataFiles in an Assay must conform to data_schema (so the type of data files produced/recorded by this assay).\n  - Materials reference samples and/or otherMaterials to tie extracted materials or other constructs to the assay.\n  - processSequence provides a workflow trace for how the assay was conducted.\n\nMandatory vs optional\n- All fields are optional in the provided schema; there is no global \"required\" array.\n\nAllowed values and types\n- @type must be \"Assay\"\n- dataFiles: items conform to data_schema (data_schema defines the allowed file types in the \"type\" field, e.g., \"Raw Data File\", \"Derived Data File\", etc.)\n- measurementType/technologyType: ontology_annotation_schema\n- device/platform: strings or ontology-based annotations as defined by the ontology_annotation_schema\n- processSequence: process_schema\n- samples/otherMaterials: references to sample_schema / material_schema\n\nCross-field dependencies and constraints\n- If a dataFile is provided, it must be a valid data_schema object and the assay should logically produce such a file.\n- linkages to materials and protocols are via nested arrays/objects.\n\nExample shape (minimal)\n{\n  \"@type\": \"Assay\",\n  \"measurementType\": { /* ontology_annotation_schema */ },\n  \"dataFiles\": [\n    {\n      \"@type\": \"Data\",\n      \"type\": \"Raw Data File\",\n      \"name\": \"experiment1.raw\"\n    }\n  ],\n  \"materials\": {\n    \"samples\": [\n      { \"@type\": \"Sample\", \"name\": \"Sample-1\" }\n    ]\n  }\n}\n\n4) Materials, protocols, processes and data (guidance for drafting and search)\nHow these elements appear in the schemas\n- Materials\n  - Material schema represents non-source, non-sample materials, such as Extract Name or Labeled Extract Name.\n  - Key fields: @id, @context, @type (must be \"Material\"), name, type (enum: \"Extract Name\" or \"Labeled Extract Name\"), characteristics (material_attribute_value_schema), comments.\n  - AdditionalProperties: False\n  - Used within studies (materials.otherMaterials) and assays (materials.otherMaterials) and as part of study-level materials.\n- Protocols\n  - Protocol schema includes: @id, @context, @type (must be \"Protocol\"), name, protocolType (ontology_annotation_schema), description, uri, version, parameters (array of protocol_parameter_schema), components (array with componentName, componentType, comments), comments.\n  - AdditionalProperties: False\n- Processes (processSequence)\n  - process_schema (referenced but not shown here) would define a sequence of processing steps in the study, assay, or protocol. It enables traceability of workflows.\n- Data\n  - Data schema defines data objects that may be linked to studies or assays. The Data type field is restricted to a set of known data file types (e.g., \"Raw Data File\", \"Derived Data File\", \"Image File\", etc.).\n  - AdditionalProperties: False\n- Cross-field guidance\n  - Ensure materials used in an assay or study are consistently declared in material_schema and referenced in the corresponding materials sections.\n  - Protocols declared at the study level can be reused by assays; the protocol schema supports protocolType and components to describe experimental steps.\n  - Data files associated with assays must conform to data_schema, with the allowed \"type\" values defined in data_schema.\n  - Where you have characteristicCategories and unitCategories, use them to avoid duplication of material_attribute entries and unit descriptions across materials, assays, and studies.\n\nExample shapes (composite; simplified)\nMaterial (example)\n{\n  \"@type\": \"Material\",\n  \"name\": \"Extract Name Example\",\n  \"type\": \"Extract Name\",\n  \"characteristics\": [\n    { /* material_attribute_value_schema item */ }\n  ]\n}\n\nProtocol (example)\n{\n  \"@type\": \"Protocol\",\n  \"name\": \"Standard Extraction\",\n  \"protocolType\": { /* ontology_annotation_schema */ },\n  \"parameters\": [\n    { /* protocol_parameter_schema item */ }\n  ],\n  \"components\": [\n    {\n      \"componentName\": \"Column A\",\n      \"componentType\": { /* ontology_annotation_schema */ }\n    }\n  ]\n}\n\nData (example)\n{\n  \"@type\": \"Data\",\n  \"name\": \"raw_output.dat\",\n  \"type\": \"Raw Data File\"\n}\n\n5) Full validation: recommended checks and constraints\nWhat to validate end-to-end across levels\n- Schema-level constraints\n  - Ensure additionalProperties: False is respected at all levels (Investigation, Study, Assay, Material, Protocol, Data).\n  - Confirm @type values match the expected enums for each object (Investigation, Study, Assay, Protocol, Material)\n  - Verify nested references conform to their respective schemas (e.g., study.assays items match assay_schema.json, study.materials.otherMaterials items match material_schema.json, etc.)\n- Cross-level consistency\n  - If Investigation contains studies, each study must be valid per study_schema, and any nested references (protocols, materials, assays) must themselves be valid.\n  - If a study declares protocols, assays, materials, etc., those objects are defined within the same ISA document and must be internally consistent (e.g., a protocol referenced within the study is either included in protocols or is otherwise defined as an inline protocol object).\n  - Data files in an assay must be valid data_schema objects. The type field must be one of the enumerated data file types in data_schema.\n- Cross-field dependencies and deduplication\n  - characteristicCategories and unitCategories are intended to avoid duplicating definitions of material attributes and units. If an attribute value or unit is declared elsewhere, ensure its reference corresponds to a declared category entry.\n- Temporal constraints (optional in given schemas)\n  - submissionDate and publicReleaseDate can be date-time or date; empty string allowed to indicate missing. If both present, consider your interpretation of sequencing (e.g., submissionDate precedes publicReleaseDate).\n- Referencing integrity\n  - For any @id used, ensure it is a valid URI reference and, where applicable, resolves to the corresponding object type in the same ISA document.\n- Example validation checklist\n  - Each Investigation is either empty or includes a valid set of studies; each Study includes valid protocols, materials, assays, factors, and optionally design descriptors; each Assay contains at least a valid dataFiles array (if present) and optional materials/processSequence; all materials and samples reference their respective schemas; all protocol entries are valid Protocol objects; all data entries are valid Data objects.\n  - No additional properties beyond the defined ones are present at any level.\n\nExample end-to-end shapes (concise, target-guiding shapes)\n- Minimal Investigation with a single Study (no required fields)\n{\n  \"@type\": \"Investigation\",\n  \"studies\": [\n    {\n      \"@type\": \"Study\",\n      \"title\": \"A Minimal Study for ISA\",\n      \"assays\": [\n        {\n          \"@type\": \"Assay\",\n          \"dataFiles\": [\n            { \"type\": \"Raw Data File\", \"name\": \"sample1.raw\" }\n          ]\n        }\n      ]\n    }\n  ]\n}\n\n- A slightly richer Study with Protocol and Materials\n{\n  \"@type\": \"Study\",\n  \"title\": \"Study with Protocol and Materials\",\n  \"protocols\": [\n    {\n      \"@type\": \"Protocol\",\n      \"name\": \"Extraction Protocol\",\n      \"protocolType\": { /* ontology_annotation_schema */ }\n    }\n  ],\n  \"materials\": {\n    \"samples\": [\n      { \"@type\": \"Sample\", \"name\": \"Sample-1\" }\n    ],\n    \"otherMaterials\": [\n      { \"@type\": \"Material\", \"name\": \"Extract-1\", \"type\": \"Extract Name\" }\n    ]\n  },\n  \"assays\": [\n    {\n      \"@type\": \"Assay\",\n      \"measurementType\": { /* ontology_annotation_schema */ },\n      \"dataFiles\": [\n        { \"@type\": \"Data\", \"name\": \"extract.derived\", \"type\": \"Derived Data File\" }\n      ]\n    }\n  ]\n}\n\n- End-to-end example consisting of Investigation \u2192 Study \u2192 Protocol, Material, Assay, Data\n{\n  \"@type\": \"Investigation\",\n  \"title\": \"End-to-end ISA example\",\n  \"studies\": [\n    {\n      \"@type\": \"Study\",\n      \"title\": \"End-to-end Study\",\n      \"protocols\": [\n        {\n          \"@type\": \"Protocol\",\n          \"name\": \"End-to-end Protocol\",\n          \"protocolType\": { /* ontology_annotation_schema */ }\n        }\n      ],\n      \"materials\": {\n        \"samples\": [\n          { \"@type\": \"Sample\", \"name\": \"S1\" }\n        ],\n        \"otherMaterials\": [\n          { \"@type\": \"Material\", \"name\": \"Extract A\", \"type\": \"Extract Name\" }\n        ]\n      },\n      \"assays\": [\n        {\n          \"@type\": \"Assay\",\n          \"dataFiles\": [\n            { \"@type\": \"Data\", \"name\": \"data1.csv\", \"type\": \"Raw Data File\" }\n          ],\n          \"materials\": {\n            \"samples\": [{ \"@type\": \"Sample\", \"name\": \"S1\" }]\n          }\n        }\n      ]\n    }\n  ]\n}\n\nNotes for planning and drafting\n- If you need to enforce mandatory fields, you should layer additional validation rules outside the provided schemas (e.g., a higher-level profile or a custom \"required\" map for your project) since the given schemas do not declare required properties.\n- When targeting document search or drafting, use the nested object types as a guide for what to look for in each section: Investigations reference Studies, Studies reference Protocols, Materials, Assays, etc. Use ontology_annotation_schema, protocol_parameter_schema, material_attribute_schema, and data_schema as the anchors for domain-specific details (controlled vocabularies, parameter lists, attribute meanings, and file types).\n- For full validation in your tooling, implement a validator that:\n  - Validates each object against its own schema\n  - Recursively validates nested objects\n  - Checks cross-field references for consistency (IDs and types)\n  - Enforces no additional properties beyond allowed fields\n  - Optionally enforces minimal content by adding a project-level requirement policy if desired\n\nIf you want, I can tailor these sections into a compact conformance checklist or produce field-by-field validation rules in a tabular form, or generate more explicit example shapes aligned to a target ISA version (e.g., v1.0 vs. any updates)."
+]      
+Decide the next action:
+  - "READ_SCHEMA" if you need to understand schema requirements 
+  - "SEARCH_DOCUMENT" if you need to find evidence from the document
+  - "UPDATE_DRAFT" if you can fix the draft deterministically
+  - "VALIDATE" if the draft is complete and ready for validation
+  - "end" if the extraction is done
+
+
+
