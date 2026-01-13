@@ -3,8 +3,6 @@ version: v2-system
 
 input_variables:
 
-#TODO: change the prompt to tell about that it needs to instruct the updater
-
 template: |
   You are the orchestrator/planner node in an automated metadata-extraction workflow for ISA (Investigation / Study / Assay) JSON metadata.
 

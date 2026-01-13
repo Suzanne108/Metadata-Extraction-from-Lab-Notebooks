@@ -65,6 +65,29 @@ Observations:
 - planner agent is going to the same steps (schema agent) with the same argument multiple times. Waste of resources and not progressing. 
 - The planner agent does not seem to properly break down the task, but instead asks for the entire schema all at once.
 
+Version 8.0
+*prompt used*: 
+- isa_overview system-v1, inference v1
+- isa_updater system-v3, inference-v2
+- planner system-v4, policy-v2, inference-v3
+- task decomposer, system-v1, inference-v1.
+
+What changed:
+Added nodes:
+- isa_overview -> to introduce what isa is to the next node - Agent call
+- document_overview -> to give a summary of the document and identify the main objects to be documented. - LLM call
+- task_decomposer -> to construct atomic tasks from the document_overview output - LLM call
+- task_progresser -> responsible for marking tasks as complete and moving on to next task - deterministic node
+Removed nodes:
+- schema_agent -> planner agent does not need to be aware of schema's in this configuration.
+
+The main change is that we start identifying atomatic subtasks to execute to complete the entire task. The planner agent is now responsible for executing only the identified subtasks, instead of being responsible for the overall system. Implemented the heuristic of task decomposition.
+
+
+Observations:
+- The choices of the planner agent are unreliable, prematurely ending the task, or choosing the same task over and over again. In the next version, 8.1, some guardrails will be implemented based on the previous message. We will make the planner node partly deterministic.
+- The document overview agent does not always identify the same amount of studies and assays.
+
 
 # Tools
 

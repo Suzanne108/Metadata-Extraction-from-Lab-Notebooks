@@ -1,6 +1,6 @@
 
 
-from src.state.v2 import ISAExtractionStateV2
+from src.state.v3 import ISAExtractionStateV3
 from langchain_openai import ChatOpenAI
 from langchain.messages import AIMessage, SystemMessage, HumanMessage
 from src.prompts.renderer import render_prompt
@@ -9,7 +9,7 @@ from src.graphs.utils import invoke_model_with_tools
 def create_schema_summarizer(model: ChatOpenAI, schema_getter_tools: list, system_prompt: str, inference_prompt_template: str):
 
 
-    def summarize_schema(state: ISAExtractionStateV2) -> dict:
+    def summarize_schema(state: ISAExtractionStateV3) -> dict:
         "Fetches and summarizes the required schema"
 
         instruction = state['orchestrator_decision'].instruction

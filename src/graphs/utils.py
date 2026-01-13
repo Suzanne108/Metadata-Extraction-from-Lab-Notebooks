@@ -12,6 +12,109 @@ from IPython.display import display, HTML, Image
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import ToolMessage
 from typing import List
+import json
+
+
+# ---- Logging helpers ----
+
+def _normalize_task_obj(t) -> dict:
+    if hasattr(t, "dict"):
+        return t.dict()
+    if isinstance(t, dict):
+        return t
+    return {"raw": str(t)}
+
+
+def _task_signature(tdict: dict) -> str:
+    kind = tdict.get("kind", "?")
+    target = tdict.get("target", "?")
+    instr = tdict.get("instruction", "")
+    return f"{kind}::{target}::{instr[:80]}"
+
+
+def _diff_tasks(prev_keys: set[str], curr_list: List) -> tuple[str, set[str]]:
+    try:
+        curr_keys = {_task_signature(_normalize_task_obj(t)) for t in (curr_list or [])}
+        added = curr_keys - prev_keys
+        removed = prev_keys - curr_keys
+        lines = []
+        if added:
+            lines.append("   Tasks added:")
+            for k in list(added)[:10]:
+                lines.append(f"      + {k}")
+            if len(added) > 10:
+                lines.append(f"      (+{len(added)-10} more)")
+        if removed:
+            lines.append("   Tasks removed:")
+            for k in list(removed)[:10]:
+                lines.append(f"      - {k}")
+            if len(removed) > 10:
+                lines.append(f"      (+{len(removed)-10} more)")
+        return ("\n".join(lines) + ("\n" if lines else ""), curr_keys)
+    except Exception:
+        return ("", prev_keys)
+
+
+def _truncate(val, limit: int = 400) -> str:
+    s = json.dumps(val, ensure_ascii=False) if not isinstance(val, str) else val
+    return s if len(s) <= limit else s[:limit] + "..."
+
+
+def _deep_diff_dicts(old: dict, new: dict, max_depth: int = 3, max_items: int = 100) -> List[str]:
+    lines = []
+
+    def walk(o, n, path: List[str], depth: int, budget: List[int]):
+        if budget[0] <= 0 or depth > max_depth:
+            return
+        o_is_dict = isinstance(o, dict)
+        n_is_dict = isinstance(n, dict)
+        if o_is_dict and n_is_dict:
+            o_keys = set(o.keys())
+            n_keys = set(n.keys())
+            for k in sorted(n_keys - o_keys):
+                if budget[0] <= 0:
+                    break
+                p = ".".join(path + [str(k)])
+                lines.append(f"      + {p} = {_truncate(n[k])}")
+                budget[0] -= 1
+            for k in sorted(o_keys - n_keys):
+                if budget[0] <= 0:
+                    break
+                p = ".".join(path + [str(k)])
+                lines.append(f"      - {p} (removed)")
+                budget[0] -= 1
+            for k in sorted(o_keys & n_keys):
+                if budget[0] <= 0:
+                    break
+                walk(o[k], n[k], path + [str(k)], depth + 1, budget)
+            return
+        # For lists, compare element-wise up to some length
+        if isinstance(o, list) and isinstance(n, list):
+            max_len = min(max_items, max(len(o), len(n)))
+            for i in range(max_len):
+                if budget[0] <= 0:
+                    break
+                ov = o[i] if i < len(o) else "<missing>"
+                nv = n[i] if i < len(n) else "<missing>"
+                if json.dumps(ov, sort_keys=True, ensure_ascii=False) != json.dumps(nv, sort_keys=True, ensure_ascii=False):
+                    p = ".".join(path + [f"[{i}]"])
+                    lines.append(f"      * {p}: {_truncate(ov)} -> {_truncate(nv)}")
+                    budget[0] -= 1
+            if len(n) > max_len:
+                p = ".".join(path + ["[...]"])
+                lines.append(f"      + {p} (truncated, {len(n)-max_len} more items)")
+            if len(o) > max_len:
+                p = ".".join(path + ["[...]"])
+                lines.append(f"      - {p} (truncated, {len(o)-max_len} more items)")
+            return
+        # Fallback: simple change
+        if json.dumps(old, sort_keys=True, ensure_ascii=False) != json.dumps(new, sort_keys=True, ensure_ascii=False):
+            p = ".".join(path)
+            lines.append(f"      * {p}: {_truncate(old)} -> {_truncate(new)}")
+            budget[0] -= 1
+
+    walk(old or {}, new or {}, [], 0, [max_items])
+    return lines
 
 
 def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: int = 10):
@@ -89,11 +192,16 @@ class Action(Enum):
     REQUEST_SCHEMA = "schema agent"
     VALIDATE = "validate current version"
     UPDATE_DRAFT = "ISA drafting agent"
+    FINISH_TASK = "task progress"
     STOP = "END"
 
 class Node(Enum):
+    ISA_OVERVIEW = "ISA overview"
+    DOC_OVERVIEW = "document overview"
+    TASK_DECOMPOSER = "task planning"
     SEARCH_DOCUMENT = "search contextual document"
     SCHEMA_SUMMARIZER_AGENT= "schema agent"
+    TASK_PROGRESS = "task progress"
     VALIDATE = "validate current version"
     UPDATE_DRAFT_AGENT = "ISA drafting agent"
     PLANNER_AGENT = "planner agent"
@@ -136,6 +244,12 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
 
     f = output_path.open("a", encoding="utf-8", buffering=1)  # line-buffered; we'll control flush explicitly
     try:
+        # Track state to capture deltas for tasks and draft changes across updates
+        last_task_keys: set[str] = set()
+        last_draft_repr: str | None = None
+        last_draft_obj: dict | None = None
+        last_draft_top_hash: dict[str, str] = {}
+
         for chunk in agent.stream(state, stream_mode="updates", config=config):
             for node_name, data in chunk.items():
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -163,6 +277,61 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
                         print()
                 else:
                     body += "   (no messages)\n"
+
+                # Detect and log newly added tasks (if tasks list is present in the update)
+                if "tasks" in data:
+                    lines, last_task_keys = _diff_tasks(last_task_keys, data.get("tasks"))
+                    if lines:
+                        body += lines
+
+                # Detect and log changes to draft_isa_metadata (top-level diff summary)
+                if "draft_isa_metadata" in data:
+                    try:
+                        new_draft = data.get("draft_isa_metadata") or {}
+                        new_repr = json.dumps(new_draft, sort_keys=True, ensure_ascii=False)
+                        if new_repr != last_draft_repr:
+                            # Top-level summary
+                            new_keys = set(new_draft.keys()) if isinstance(new_draft, dict) else set()
+                            old_keys = set(last_draft_top_hash.keys()) if isinstance(last_draft_top_hash, dict) else set()
+                            added_keys = new_keys - old_keys
+                            removed_keys = old_keys - new_keys
+                            changed_keys = []
+                            shared = new_keys & old_keys
+                            for k in list(shared)[:100]:
+                                v_repr = json.dumps(new_draft.get(k), sort_keys=True, ensure_ascii=False)
+                                if last_draft_top_hash.get(k) != v_repr:
+                                    changed_keys.append(k)
+
+                            body += "   Draft ISA metadata updated:\n"
+                            if added_keys:
+                                body += f"      + added keys: {sorted(list(added_keys))[:10]}\n"
+                            if removed_keys:
+                                body += f"      - removed keys: {sorted(list(removed_keys))[:10]}\n"
+                            if changed_keys:
+                                body += f"      * changed keys: {sorted(changed_keys)[:10]}\n"
+
+                            # Deeper diff (limited depth and items)
+                            deep_lines = _deep_diff_dicts(
+                                last_draft_obj if isinstance(last_draft_obj, dict) else {},
+                                new_draft if isinstance(new_draft, dict) else {},
+                                max_depth=3,
+                                max_items=80,
+                            )
+                            if deep_lines:
+                                body += "      Deep diff (truncated):\n" + "\n".join(deep_lines[:80]) + "\n"
+
+                            # Update trackers
+                            last_draft_repr = new_repr
+                            last_draft_obj = new_draft if isinstance(new_draft, dict) else None
+                            last_draft_top_hash = {}
+                            if isinstance(new_draft, dict):
+                                for k, v in list(new_draft.items())[:500]:
+                                    try:
+                                        last_draft_top_hash[k] = json.dumps(v, sort_keys=True, ensure_ascii=False)
+                                    except Exception:
+                                        last_draft_top_hash[k] = str(v)
+                    except Exception:
+                        pass
 
                 # Add a blank line separator for readability
                 footer = "\n"

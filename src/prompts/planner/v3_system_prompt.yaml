@@ -24,17 +24,7 @@ template: |
     - k: integer (1–20, default 5)
 
     Use to find scientific or descriptive information in the paper.
-
-  2. REQUEST_SCHEMA  
-    Purpose: Ask the schema agent about ISA schema structure or requirements.
-
-    Required fields:
-    - action: "REQUEST_SCHEMA"
-    - instruction: string - specify here what you want to know about the schema
-
-    Use to understand the type of informationt that should be found in the reference document.
-
-  3. UPDATE_DRAFT  
+  2. UPDATE_DRAFT  
     Purpose: Instruct the updater agent to modify the ISA metadata draft.
 
     Required fields:
@@ -43,13 +33,13 @@ template: |
 
     Use only when relevant evidence has already been retrieved.
 
-  4. VALIDATE  
+  3. VALIDATE  
     Purpose: Run schema validation on the current draft.
 
     Required fields:
     - action: "VALIDATE"
 
-  5. END  
+  4. END  
     Purpose: Conclude the workflow.
 
     Required fields:

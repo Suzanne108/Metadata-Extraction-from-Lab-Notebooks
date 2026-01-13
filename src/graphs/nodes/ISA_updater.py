@@ -1,7 +1,7 @@
 
 
 import json
-from src.state.v2 import ISAExtractionStateV2
+from src.state.v3 import ISAExtractionStateV3
 from langchain_openai import ChatOpenAI
 from langchain.messages import AIMessage, SystemMessage, HumanMessage
 from src.prompts.registry import PromptRegistry
@@ -11,7 +11,7 @@ from typing import List
 
 def create_ISA_updater(model: ChatOpenAI, schema_getter_tools: List, system_prompt: str, inference_prompt_template: str):
 
-    def ISA_updater(state: ISAExtractionStateV2) -> dict:
+    def ISA_updater(state: ISAExtractionStateV3) -> dict:
 
         draft_isa_metadata = state.get("draft_isa_metadata", {})
         instruction = state['orchestrator_decision'].instruction
@@ -36,13 +36,13 @@ def create_ISA_updater(model: ChatOpenAI, schema_getter_tools: List, system_prom
         # Parse the response and update the state
         try:
             isa_updated_draft = json.loads(response.content)
-            isa_updater_message = f"Updated draft ISA metadata. New draft: {json.dumps(isa_updated_draft, indent=2)}"
+            isa_updater_message = f"NODE: UPDATE_DRAFT; status: success; instruction: {instruction}"
         except json.JSONDecodeError as e:
             print(f"Error parsing JSON response: {e}")
             print(f"Response content: {response.content}")
             # Keep the old draft if parsing fails
             isa_updated_draft = draft_isa_metadata
-            isa_updater_message = f"Failed to parse updated draft: {str(e)}"
+            isa_updater_message = f"NODE: UPDATE_DRAFT; status: error; error: failed to parse updated draft: {str(e)}; instruction: {instruction}"
 
         return {
             "draft_isa_metadata": isa_updated_draft,

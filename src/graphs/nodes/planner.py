@@ -1,5 +1,5 @@
 from src.graphs.utils import NextStep
-from src.state.v2 import ISAExtractionStateV2
+from src.state.v3 import ISAExtractionStateV3
 from langchain.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from src.prompts.renderer import render_prompt
@@ -29,7 +29,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         return AIMessage(content=content + "\n" + received_prompt)
 
 
-    def planner(state: ISAExtractionStateV2 ) -> dict:
+    def planner(state: ISAExtractionStateV3 ) -> dict:
         "Decides next action based on the current state"
 
         vr = state.get("validation_result") or {}
@@ -51,18 +51,28 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         previous_messages = previous_messages or ["No previous messages."]
         previous_messages = json.dumps(previous_messages, indent=2)
 
-        # Call LLM to analyze state and decide next step
+        # Determine current task string for prompt
+        tasks = state.get("tasks") or []
+        idx = state.get("current_task_index")
+        if isinstance(idx, int) and 0 <= idx < len(tasks):
+            t = tasks[idx]
+            current_task = {"kind": t.kind, "target": t.target, "instruction": t.instruction, "status": t.status}
+            current_task_str = json.dumps(current_task, indent=2)
+        else:
+            current_task_str = "None"
 
+        # Call LLM to analyze state and decide next step
         registry = PromptRegistry()
-        prompt_template = registry.get_prompt("planner", "v2-inference")
+        prompt_template = registry.get_prompt("planner", "v3-inference")
         prompt = render_prompt(
             prompt_template,
             {
                 "draft": draft,
                 "validation_result": vr,
                 "evidence": evidence,
-                "previous_messages": previous_messages
-            }
+                "previous_messages": previous_messages,
+                "current_task": current_task_str,
+            },
         )
 
         messages = [SystemMessage(content=system_prompt), SystemMessage(content=policy_prompt), HumanMessage(content=prompt)]

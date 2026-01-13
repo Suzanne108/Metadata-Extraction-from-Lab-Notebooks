@@ -1,0 +1,7 @@
+name: ISA_overview
+version: v1-inference
+
+input_variables:
+
+template: |
+  Provide a concise, practical ISA orientation as plain text following the system prompt’s guidance. Use short paragraphs and bullets, avoid jargon, and do NOT output JSON.

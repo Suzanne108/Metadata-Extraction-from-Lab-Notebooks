@@ -1,0 +1,19 @@
+name: task_decomposer
+version: v1-inference
+
+input_variables:
+ - document_overview
+
+template: |
+  Based on the Document Overview (plain text with numbered entities), output a JSON array of atomic ISA-building tasks. Do not search external content and do not update drafts.
+
+  Inputs
+  - document_overview: {document_overview}
+
+  Requirements
+  - Each element is an object with fields: kind, target, instruction
+  - kind ∈ (investigation, study, assay, material, process, protocol, factor, data)
+  - Be specific and reference numbered entity IDs (e.g., “Study #1”, “Assay #2”) when available.
+  - Prioritize tasks in a sensible execution order.
+
+  Output only the JSON array, nothing else.
