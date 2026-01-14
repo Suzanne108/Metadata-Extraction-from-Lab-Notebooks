@@ -5,7 +5,7 @@ from src.graphs.nodes.task_decomposer import create_task_decomposer
 from src.model import get_chat_model
 from src.graphs.nodes.planner import create_planner
 from src.tools import create_doc_getter, create_schema_getter
-from src.graphs.utils import index_document, stream_messages, NextStep, Node
+from src.graphs.utils import index_document, stream_messages, NextStepLLM, Node
 from src.graphs.nodes.routing_function import routing_function
 from langgraph.graph import StateGraph, START, END
 from src.state.v3 import ISAExtractionStateV3, TaskList
@@ -30,9 +30,9 @@ def create_workflow_dependencies():
 
 def build_planner_node(registry: PromptRegistry):
     """Create the planner node with structured output and prompts."""
-    model_planner = get_chat_model().with_structured_output(NextStep)
-    planner_system_prompt = render_prompt(registry.get_prompt("planner", "v4-system"), {})
-    planner_policy_prompt = render_prompt(registry.get_prompt("planner", "v2-policy"), {})
+    model_planner = get_chat_model().with_structured_output(NextStepLLM)
+    planner_system_prompt = render_prompt(registry.get_prompt("planner", "v5-system"), {})
+    planner_policy_prompt = render_prompt(registry.get_prompt("planner", "v3-policy"), {})
     return create_planner(model_planner, planner_system_prompt, planner_policy_prompt)
 
 def build_isa_overview_node(registry: PromptRegistry, schema_getter_tools):
@@ -119,8 +119,8 @@ def build_graph(
         {
             Node.UPDATE_DRAFT_AGENT.value: Node.UPDATE_DRAFT_AGENT.value,
             Node.SEARCH_DOCUMENT.value: Node.SEARCH_DOCUMENT.value,
-            Node.TASK_PROGRESS.value: Node.TASK_PROGRESS.value,
            # Node.SCHEMA_SUMMARIZER_AGENT.value: Node.SCHEMA_SUMMARIZER_AGENT.value,
+            Node.TASK_PROGRESS.value: Node.TASK_PROGRESS.value,
             Node.VALIDATE.value: Node.VALIDATE.value,
             Node.STOP.value: END,  # Allow planner to decide when to END
         },
@@ -179,9 +179,10 @@ def run_stateful_graph_workflow():
         validation_result={},
         isa_mental_model="",
         document_overview="",
-        tasks=[]
+        tasks=[],
+        last_action=None
     )
 
-    config = RunnableConfig(recursion_limit=50)
+    config = RunnableConfig(recursion_limit=2000)
 
     stream_messages(app, initial_state, config=config)

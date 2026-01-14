@@ -2,6 +2,7 @@ from src.state.v3 import ISAExtractionStateV3
 from src.tools import get_schema, validate_ISA_schema
 from langchain.messages import AIMessage, ToolMessage
 from langchain_core.tools import StructuredTool
+import json as _json
     
 
 def create_search_document_caller(search_document_tool: StructuredTool):
@@ -9,7 +10,7 @@ def create_search_document_caller(search_document_tool: StructuredTool):
     def search_document_caller(state: ISAExtractionStateV3):
         if not state['orchestrator_decision'].query:
             return{
-                "messages": state.get("messages", []) + [ToolMessage(content="No query provided for document search.", tool_call_id="search_document")]
+                "messages": [ToolMessage(content="No query provided for document search.", tool_call_id="search_document")]
             }
         query = state['orchestrator_decision'].query
 
@@ -34,7 +35,8 @@ def create_search_document_caller(search_document_tool: StructuredTool):
         return {
             "evidence": evidence,
             "latest_evidence": results,
-            "messages": state.get("messages", []) + [ToolMessage(content=message, tool_call_id="search_document")]
+            "messages": [ToolMessage(content=message, tool_call_id="search_document")],
+            "last_action": "SEARCH_DOCUMENT"
         }
     
     return search_document_caller
@@ -44,30 +46,31 @@ def validate(state: ISAExtractionStateV3):
     if not draft_isa_metadata:
         message = "No draft ISA metadata to validate."
         return {
-            "messages": state.get("messages", []) + [ToolMessage(content=message, tool_call_id="validation")]
+            "messages": state.get("messages", []) + [ToolMessage(content=message, tool_call_id="validation")],
+            "last_action": "VALIDATE"
         }
+    
+    # TODO: Fix validation calling code
 
+    validation_result = None
     # Call validation tool directly
     if hasattr(validate_ISA_schema, "invoke"):
         validation_result = validate_ISA_schema.invoke({"isa": draft_isa_metadata})
     elif hasattr(validate_ISA_schema, "run"):
         # Fallback: some tools expose .run that accepts positional/keyword args
         validation_result = validate_ISA_schema.run(draft_isa_metadata)
-    elif callable(validate_ISA_schema):
-        # Last resort if it's a plain function
-        validation_result = validate_ISA_schema(draft_isa_metadata)
     else:
-        raise TypeError("validate_ISA_schema is not invokable; expected a LangChain tool or callable")
+        validation_result = "Was not able to call validation tool."
 
     # Add validation result to messages
-    messages = list(state.get("messages", []))
-    import json as _json
-    messages.append(ToolMessage(
-        content=f"NODE: VALIDATE; result: {_json.dumps(validation_result, ensure_ascii=False)}",
-        tool_call_id="validation"
-    ))
-
-    return {"messages": messages, "validation_result": validation_result}
+    return {
+        "messages": [ToolMessage(
+            content=f"NODE: VALIDATE; result: {_json.dumps(validation_result, ensure_ascii=False)}",
+            tool_call_id="validation"
+            )],
+            "validation_result": validation_result,
+            "last_action": "VALIDATE"
+        }
 
 
 

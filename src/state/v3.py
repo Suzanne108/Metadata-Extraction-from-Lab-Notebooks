@@ -52,3 +52,7 @@ class ISAExtractionStateV3(TypedDict):
 
     # Message tracing
     messages: Annotated[list[AnyMessage], operator.add]
+
+    # The latest executed node/action in the planner loop
+    # Values: "SEARCH_DOCUMENT" | "UPDATE_DRAFT" | "VALIDATE" | "TASK_PROGRESS" | None
+    last_action: str | None

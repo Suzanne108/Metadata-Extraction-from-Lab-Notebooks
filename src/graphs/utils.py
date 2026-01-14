@@ -189,7 +189,7 @@ def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: 
 
 class Action(Enum):
     SEARCH_DOCUMENT = "search contextual document"
-    REQUEST_SCHEMA = "schema agent"
+    #REQUEST_SCHEMA = "schema agent"
     VALIDATE = "validate current version"
     UPDATE_DRAFT = "ISA drafting agent"
     FINISH_TASK = "task progress"
@@ -214,6 +214,56 @@ class NextStep(BaseModel):
     query: str | None = Field(description= "In case of action search_document, the query to search the document with")
     k: int | None = Field(description= "In case of search_document, the amount of semantically relevant pieces to retrieve")
     rationale: str = Field(description= "The reason for choosing this action")
+
+def trimmed_messages(state: dict, additions: list | None = None, max_messages: int = 30, max_total_chars: int = 60000):
+    """Return a bounded list of messages by appending `additions` then trimming.
+
+    - Keeps only the latest `max_messages` messages
+    - Also enforces an approximate character budget across message.contents
+    This reduces unbounded growth of the `messages` channel while preserving
+    most recent context for routing/diagnostics.
+    """
+    msgs = list(state.get("messages", []) or [])
+    if additions:
+        if isinstance(additions, list):
+            msgs.extend(additions)
+        else:
+            msgs.append(additions)
+
+    # Limit by count first
+    if len(msgs) > max_messages:
+        msgs = msgs[-max_messages:]
+
+    # Then enforce a coarse character budget (drop oldest first)
+    def _content_len(m):
+        try:
+            return len(getattr(m, "content", "") or "")
+        except Exception:
+            return 0
+
+    total = 0
+    kept: list = []
+    for m in reversed(msgs):
+        total += _content_len(m)
+        if total > max_total_chars and kept:
+            break
+        kept.append(m)
+    kept.reverse()
+    return kept
+
+# LLM-visible actions exclude STOP/END (termination is system-driven)
+class ActionLLM(Enum):
+    SEARCH_DOCUMENT = "search contextual document"
+    VALIDATE = "validate current version"
+    UPDATE_DRAFT = "ISA drafting agent"
+
+
+class NextStepLLM(BaseModel):
+    action: ActionLLM = Field(description="The next step to perform (LLM-restricted)")
+    instruction: str | None = Field(description="In case of action update_draft, the instruction to be given to the ISA updater agent")
+    query: str | None = Field(description="In case of action search_document, the query to search the document with")
+    k: int | None = Field(description="In case of search_document, the amount of semantically relevant pieces to retrieve")
+    rationale: str = Field(description="The reason for choosing this action")
 
 
 def index_document() -> DocumentManager:
@@ -244,11 +294,8 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
 
     f = output_path.open("a", encoding="utf-8", buffering=1)  # line-buffered; we'll control flush explicitly
     try:
-        # Track state to capture deltas for tasks and draft changes across updates
+        # Track state to capture deltas for tasks across updates
         last_task_keys: set[str] = set()
-        last_draft_repr: str | None = None
-        last_draft_obj: dict | None = None
-        last_draft_top_hash: dict[str, str] = {}
 
         for chunk in agent.stream(state, stream_mode="updates", config=config):
             for node_name, data in chunk.items():
@@ -258,7 +305,7 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
 
                 # Compose the message content to both print and log
                 body = ""
-                if "messages" in data:
+                if isinstance(data, dict) and "messages" in data:
                     message = data["messages"][-1]
                     if hasattr(message, "tool_calls") and message.tool_calls:
                         tc = message.tool_calls[0]
@@ -279,59 +326,10 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
                     body += "   (no messages)\n"
 
                 # Detect and log newly added tasks (if tasks list is present in the update)
-                if "tasks" in data:
+                if isinstance(data, dict)  and "tasks" in data:
                     lines, last_task_keys = _diff_tasks(last_task_keys, data.get("tasks"))
                     if lines:
                         body += lines
-
-                # Detect and log changes to draft_isa_metadata (top-level diff summary)
-                if "draft_isa_metadata" in data:
-                    try:
-                        new_draft = data.get("draft_isa_metadata") or {}
-                        new_repr = json.dumps(new_draft, sort_keys=True, ensure_ascii=False)
-                        if new_repr != last_draft_repr:
-                            # Top-level summary
-                            new_keys = set(new_draft.keys()) if isinstance(new_draft, dict) else set()
-                            old_keys = set(last_draft_top_hash.keys()) if isinstance(last_draft_top_hash, dict) else set()
-                            added_keys = new_keys - old_keys
-                            removed_keys = old_keys - new_keys
-                            changed_keys = []
-                            shared = new_keys & old_keys
-                            for k in list(shared)[:100]:
-                                v_repr = json.dumps(new_draft.get(k), sort_keys=True, ensure_ascii=False)
-                                if last_draft_top_hash.get(k) != v_repr:
-                                    changed_keys.append(k)
-
-                            body += "   Draft ISA metadata updated:\n"
-                            if added_keys:
-                                body += f"      + added keys: {sorted(list(added_keys))[:10]}\n"
-                            if removed_keys:
-                                body += f"      - removed keys: {sorted(list(removed_keys))[:10]}\n"
-                            if changed_keys:
-                                body += f"      * changed keys: {sorted(changed_keys)[:10]}\n"
-
-                            # Deeper diff (limited depth and items)
-                            deep_lines = _deep_diff_dicts(
-                                last_draft_obj if isinstance(last_draft_obj, dict) else {},
-                                new_draft if isinstance(new_draft, dict) else {},
-                                max_depth=3,
-                                max_items=80,
-                            )
-                            if deep_lines:
-                                body += "      Deep diff (truncated):\n" + "\n".join(deep_lines[:80]) + "\n"
-
-                            # Update trackers
-                            last_draft_repr = new_repr
-                            last_draft_obj = new_draft if isinstance(new_draft, dict) else None
-                            last_draft_top_hash = {}
-                            if isinstance(new_draft, dict):
-                                for k, v in list(new_draft.items())[:500]:
-                                    try:
-                                        last_draft_top_hash[k] = json.dumps(v, sort_keys=True, ensure_ascii=False)
-                                    except Exception:
-                                        last_draft_top_hash[k] = str(v)
-                    except Exception:
-                        pass
 
                 # Add a blank line separator for readability
                 footer = "\n"

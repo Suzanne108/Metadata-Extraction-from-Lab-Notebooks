@@ -88,6 +88,22 @@ Observations:
 - The choices of the planner agent are unreliable, prematurely ending the task, or choosing the same task over and over again. In the next version, 8.1, some guardrails will be implemented based on the previous message. We will make the planner node partly deterministic.
 - The document overview agent does not always identify the same amount of studies and assays.
 
+Version 8.1
+*prompt used*:
+- isa_overview system-v1, inference v1
+- isa_updater system-v3, inference-v2
+- planner system-v5, policy-v3, inference-v2
+- task decomposer, system-v1, inference-v1.
+
+What changed:
+- Added constraints to planner agent. Some transactions are now automatic, so that the LLM does not have the authority to change this. All tasks completed --> STOP. Update draft --> validate, validate + succes = finish task
+
+Observations:
+- Able to properly iterate through the task steps because of automatic transactions
+- No real feedback yet on the content of the isa metadata instead of just the structure, the content might be faulty
+- Trouble with onotology annotations --> this is not possible yet and the system just makes things up
+- A lot of back and forth between invalid schema's and updater - is there some way to prevent this? Wondering if the updater properly looks at the schema's before updating. Maybe update prompt
+
 
 # Tools
 

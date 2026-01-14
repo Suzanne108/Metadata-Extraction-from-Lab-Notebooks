@@ -17,7 +17,7 @@ def create_isa_overview(model: ChatOpenAI, schema_getter_tools: list, system_pro
         mental_model = response.content if hasattr(response, "content") else str(response)
         return {
             "isa_mental_model": mental_model,
-            "messages": state.get("messages", []) + [AIMessage(content=mental_model)]
+            "messages": [AIMessage(content=mental_model)]
         }
 
     return isa_overview

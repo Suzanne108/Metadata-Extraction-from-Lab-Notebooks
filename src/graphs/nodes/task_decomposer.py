@@ -26,7 +26,7 @@ def create_task_decomposer(model: ChatOpenAI, system_prompt: str, inference_prom
 
         return {
             "tasks": response.tasks,
-            "messages": state.get("messages", []) + [AIMessage(content=message_summary)],
+            "messages": [AIMessage(content=message_summary)],
         }
 
     return task_decomposer

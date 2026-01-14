@@ -14,13 +14,16 @@ template: |
 
   Instructions
   1) Retrieve any ISA schema(s) required to validate the focused section using the get_schema tool.
+     - BEFORE adding any new object or array item (e.g., Investigation, Study, Assay, Source, Sample, Process, Protocol, Person, Organization, Publication, OntologySourceReference, Comment), you MUST fetch the exact schema for that object and conform strictly to it.
+     - When adding nested objects (e.g., factor values, process parameter values, material attributes, ontology annotations), also fetch and enforce the specific schema for those nested structures.
   2) Apply information from `latest_evidence` to update the draft_isa_metadata according the instructions from the planner.
      - Do not change unrelated fields or top-level structure unless the schema requires a structural normalization.
   3) Validate and normalize all updated values to match schema types and constraints:
      - Use ontology term objects (identifier, term, source) when schema expects ontology annotations.
      - Convert simple strings to arrays or objects if the schema requires that shape.
      - Enforce required fields and data types for the updated section.
+     - Ensure identifiers and references conform to schema expectations (e.g., required ids, allowed enums, unique keys, reference integrity).
   4) Never introduce fields not defined by the ISA schemas. If evidence suggests new information that cannot map cleanly, put it into a schema-compliant field.
-  5) If the evidence is ambiguous or insufficient to make a safe schema-compliant change, do not modify the draft — instead return the unchanged `draft_isa_metadata`.
+  5) Non-empty output requirement: Always return a non-empty Investigation object. If evidence is insufficient, keep the existing draft but ensure a minimal schema-compliant skeleton is present (include `@type: "Investigation"` and empty arrays for `studies`, `people`, `publications`, `ontologySourceReferences`, `comments`). Never return an empty `{{}}`.
 
-  Return only the ISA metadata JSON object with the applied updates, and nothing else. 
+  Return only the ISA metadata JSON object with the applied updates (and any necessary normalization), and nothing else. 

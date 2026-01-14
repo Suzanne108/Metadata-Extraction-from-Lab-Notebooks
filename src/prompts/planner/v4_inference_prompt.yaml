@@ -1,0 +1,35 @@
+name: planner
+version: v4-inference
+
+input_variables:
+- draft
+- validation_result
+- evidence
+- previous_messages
+- current_task
+
+template: |
+  Current ISA Draft: {draft}
+  Latest Validation Result: {validation_result}
+  Evidence keys: {evidence}
+  Previous Actions: {previous_messages}
+
+  Current Task: {current_task}
+
+  Decide exactly ONE next action as a JSON object with fields: action, instruction (optional), query (optional), k (optional), rationale.
+
+  Policy
+  - Operate ONLY on the current task:
+    - You MUST use "SEARCH_DOCUMENT" to gather missing facts when evidence is insufficient (avoid repeating queries in `asked_doc_queries`).
+    - If this is the first decision for the current task or there is no relevant evidence yet, you MUST choose "SEARCH_DOCUMENT" before any "UPDATE_DRAFT".
+    - You MUST use "UPDATE_DRAFT" when you can deterministically complete the current task with available evidence.
+    - You MUST use "VALIDATE" after a coherent unit of changes or to check progress.
+    - After "VALIDATE":
+      - If validation_result.valid == false, you MUST choose either "UPDATE_DRAFT" (with explicit instructions to fix failures) or "SEARCH_DOCUMENT" to gather missing evidence, then "VALIDATE" again.
+
+  Message-driven decision rules (prioritize what was just done):
+  - If the latest message indicates UPDATE_DRAFT (content starts with "NODE: UPDATE_DRAFT"), prefer "VALIDATE" next.
+  - If the latest message indicates SEARCH_DOCUMENT ("NODE: SEARCH_DOCUMENT"), prefer "UPDATE_DRAFT" next (or another search if evidence is still insufficient).
+  - If the latest message indicates VALIDATE ("NODE: VALIDATE") and result.valid == false, choose "UPDATE_DRAFT" or "SEARCH_DOCUMENT", then "VALIDATE" again.
+
+  Output only the JSON object.

@@ -34,7 +34,7 @@ def create_document_overview(model: ChatOpenAI, system_prompt: str, inference_pr
         overview_text = response.content if hasattr(response, "content") else str(response)
         return {
             "document_overview": overview_text,
-            "messages": state.get("messages", []) + [AIMessage(content=overview_text)],
+            "messages": [AIMessage(content=overview_text)],
         }
 
     return document_overview
