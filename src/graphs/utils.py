@@ -55,67 +55,6 @@ def _diff_tasks(prev_keys: set[str], curr_list: List) -> tuple[str, set[str]]:
         return ("", prev_keys)
 
 
-def _truncate(val, limit: int = 400) -> str:
-    s = json.dumps(val, ensure_ascii=False) if not isinstance(val, str) else val
-    return s if len(s) <= limit else s[:limit] + "..."
-
-
-def _deep_diff_dicts(old: dict, new: dict, max_depth: int = 3, max_items: int = 100) -> List[str]:
-    lines = []
-
-    def walk(o, n, path: List[str], depth: int, budget: List[int]):
-        if budget[0] <= 0 or depth > max_depth:
-            return
-        o_is_dict = isinstance(o, dict)
-        n_is_dict = isinstance(n, dict)
-        if o_is_dict and n_is_dict:
-            o_keys = set(o.keys())
-            n_keys = set(n.keys())
-            for k in sorted(n_keys - o_keys):
-                if budget[0] <= 0:
-                    break
-                p = ".".join(path + [str(k)])
-                lines.append(f"      + {p} = {_truncate(n[k])}")
-                budget[0] -= 1
-            for k in sorted(o_keys - n_keys):
-                if budget[0] <= 0:
-                    break
-                p = ".".join(path + [str(k)])
-                lines.append(f"      - {p} (removed)")
-                budget[0] -= 1
-            for k in sorted(o_keys & n_keys):
-                if budget[0] <= 0:
-                    break
-                walk(o[k], n[k], path + [str(k)], depth + 1, budget)
-            return
-        # For lists, compare element-wise up to some length
-        if isinstance(o, list) and isinstance(n, list):
-            max_len = min(max_items, max(len(o), len(n)))
-            for i in range(max_len):
-                if budget[0] <= 0:
-                    break
-                ov = o[i] if i < len(o) else "<missing>"
-                nv = n[i] if i < len(n) else "<missing>"
-                if json.dumps(ov, sort_keys=True, ensure_ascii=False) != json.dumps(nv, sort_keys=True, ensure_ascii=False):
-                    p = ".".join(path + [f"[{i}]"])
-                    lines.append(f"      * {p}: {_truncate(ov)} -> {_truncate(nv)}")
-                    budget[0] -= 1
-            if len(n) > max_len:
-                p = ".".join(path + ["[...]"])
-                lines.append(f"      + {p} (truncated, {len(n)-max_len} more items)")
-            if len(o) > max_len:
-                p = ".".join(path + ["[...]"])
-                lines.append(f"      - {p} (truncated, {len(o)-max_len} more items)")
-            return
-        # Fallback: simple change
-        if json.dumps(old, sort_keys=True, ensure_ascii=False) != json.dumps(new, sort_keys=True, ensure_ascii=False):
-            p = ".".join(path)
-            lines.append(f"      * {p}: {_truncate(old)} -> {_truncate(new)}")
-            budget[0] -= 1
-
-    walk(old or {}, new or {}, [], 0, [max_items])
-    return lines
-
 
 def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: int = 10):
     """
@@ -266,15 +205,14 @@ class NextStepLLM(BaseModel):
     rationale: str = Field(description="The reason for choosing this action")
 
 
-def index_document() -> DocumentManager:
-    path = Path.cwd() / "papers" / "Image-based_methods_for_phenotyping_growth_dynamics_and_fitness_components_in_arabidopsis_thaliana.pdf "
+def index_document(document_path) -> DocumentManager:
     doc_manager = DocumentManager()
 
-    doc_manager.embed_documents(path)
+    doc_manager.embed_documents(document_path)
 
     return doc_manager
 
-def stream_messages(agent, state, config: RunnableConfig = None, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
+def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
     """
     Stream agent steps to stdout and also append them efficiently to `output_path`.
 
@@ -285,7 +223,7 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
     print("Streaming agent steps:\n")
 
     if output_path is None:
-        output_path = Path.cwd() / "output" / "stream_log.txt"
+        output_path = Path.cwd() / "output" / f"stream_log_{run_id}.txt"
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -399,3 +337,13 @@ def visualise_graph(app: StateGraph, output_path: str | Path = None):
     
     print(f"Graph visualization saved to: {output_path}")
     
+
+def write_final_state(final_state, run_id: str, output_path: str | Path = None) -> Path:
+    if output_path is None:
+        output_path = Path.cwd() / "output" / f"isa_draft_{run_id}.json"
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    draft = final_state.get("draft_isa_metadata") if isinstance(final_state, dict) else getattr(final_state, "draft_isa_metadata", {})
+    with p.open("w", encoding="utf-8") as f:
+        json.dump(draft or {}, f, ensure_ascii=False, indent=2)
+    return p

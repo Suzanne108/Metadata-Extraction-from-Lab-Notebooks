@@ -102,7 +102,17 @@ Observations:
 - Able to properly iterate through the task steps because of automatic transactions
 - No real feedback yet on the content of the isa metadata instead of just the structure, the content might be faulty
 - Trouble with onotology annotations --> this is not possible yet and the system just makes things up
-- A lot of back and forth between invalid schema's and updater - is there some way to prevent this? Wondering if the updater properly looks at the schema's before updating. Maybe update prompt
+- A lot of 'mistakes' stem from misunderstanding of the purpose of different ISA objects. In next version add official ISA abstract model specification to node ISA_overview, instead of just JSON specifications of ISA objects.
+
+Version 8.2
+*prompts used*
+- isa_overview system-v1, inference v1
+- isa_updater system-v3, inference-v2
+- planner system-v5, policy-v3, inference-v2
+- task decomposer, system-v1, inference-v1.
+
+What changed:
+- added offical ISA abstract model specification to node ISA_overview, instead of just JSON specifications of ISA objects. In hope that this leads to better understanding of ISA objects functions.
 
 
 # Tools

@@ -5,9 +5,10 @@ from src.graphs.nodes.task_decomposer import create_task_decomposer
 from src.model import get_chat_model
 from src.graphs.nodes.planner import create_planner
 from src.tools import create_doc_getter, create_schema_getter
-from src.graphs.utils import index_document, stream_messages, NextStepLLM, Node
+from src.graphs.utils import index_document, stream_messages, NextStepLLM, Node, write_final_state
 from src.graphs.nodes.routing_function import routing_function
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from src.state.v3 import ISAExtractionStateV3, TaskList
 from src.graphs.nodes.tool_callers import create_search_document_caller, validate
 from langchain_core.runnables import RunnableConfig
@@ -15,12 +16,15 @@ from src.prompts.registry import PromptRegistry
 from src.prompts.renderer import render_prompt
 from src.graphs.nodes.schema_summarizer import create_schema_summarizer
 from src.graphs.nodes.task_progress import create_task_progressor
+import uuid
+from src.document_processing import DocumentManager
+from pathlib import Path
 
 
-def create_workflow_dependencies():
+def create_workflow_dependencies(document_path: str = None):
     """Creates dependencies required for the stateful graph workflow"""
     # Create doc manager and tools
-    doc_manager = index_document()
+    doc_manager = index_document(document_path=document_path)
     search_document_tool = create_doc_getter(doc_manager)
     search_document_caller = create_search_document_caller(search_document_tool)
     schema_getter_tools = create_schema_getter()
@@ -39,11 +43,15 @@ def build_isa_overview_node(registry: PromptRegistry, schema_getter_tools):
     """Create the ISA overview node with its prompts."""
 
     model = get_chat_model().bind_tools(schema_getter_tools)
-    isa_overview_system = render_prompt(registry.get_prompt("ISA_overview", "v1-system"), {})
-    isa_overview_infer = registry.get_prompt("ISA_overview", "v1-inference")
+    isa_overview_system = render_prompt(registry.get_prompt("ISA_overview", "v2-system"), {})
+    isa_overview_infer = registry.get_prompt("ISA_overview", "v2-inference")
 
-    return create_isa_overview(model, schema_getter_tools, isa_overview_system, isa_overview_infer)
+    doc_manager = DocumentManager()
+    path = Path.cwd() / "instructions" / "ISA_abstract_model.pdf"
 
+    isa_overview_doc = doc_manager.load_pdf(path)
+
+    return create_isa_overview(model, schema_getter_tools, isa_overview_system, isa_overview_infer, isa_overview_doc)
 
 def build_doc_overview_node(registry: PromptRegistry):
     """Create ISA overview and document overview nodes with their prompts."""
@@ -132,12 +140,14 @@ def build_graph(
     #graph.add_edge(Node.SCHEMA_SUMMARIZER_AGENT.value, Node.PLANNER_AGENT.value)
     graph.add_edge(Node.VALIDATE.value, Node.PLANNER_AGENT.value)
 
-    return graph.compile()
+    # Compile with an in-memory checkpointer so state can be retrieved
+    checkpointer = MemorySaver()
+    return graph.compile(checkpointer=checkpointer)
 
 
-def create_stateful_graph_workflow() -> StateGraph:
+def create_stateful_graph_workflow(document_path: str = None) -> StateGraph:
     # Dependencies
-    search_document_caller, schema_getter_tools = create_workflow_dependencies()
+    search_document_caller, schema_getter_tools = create_workflow_dependencies(document_path)
 
     # Registry
     registry = PromptRegistry()
@@ -164,10 +174,10 @@ def create_stateful_graph_workflow() -> StateGraph:
 
     return app
 
-def run_stateful_graph_workflow():
-    app = create_stateful_graph_workflow()
+def run_stateful_graph_workflow(document_path: str) -> ISAExtractionStateV3 | None:
+    app = create_stateful_graph_workflow(document_path)
 
-    doc_manager = index_document()
+    doc_manager = index_document(document_path)
     document = doc_manager.document
 
     # Initialize empty state
@@ -183,6 +193,18 @@ def run_stateful_graph_workflow():
         last_action=None
     )
 
-    config = RunnableConfig(recursion_limit=2000)
+    # Provide a thread_id so checkpoints are recorded under this session
+    run_id = uuid.uuid4()
+    thread_id = f"isa-extract-{run_id}"
+    config = RunnableConfig(recursion_limit=9000000, configurable={"thread_id": thread_id})
 
-    stream_messages(app, initial_state, config=config)
+    stream_messages(run_id, app, initial_state, config=config)
+
+    # After streaming completes, fetch the authoritative final state
+    try:
+        state_snapshot = app.get_state(config)
+        write_final_state(state_snapshot, run_id)
+        return state_snapshot
+    except Exception as e:
+        print(f"Failed to retrieve final state: {e}")
+        return None

@@ -24,7 +24,7 @@ def create_document_overview(model: ChatOpenAI, system_prompt: str, inference_pr
             inference_prompt_template,
             {
                 "mental_model": mental_model,
-                "text": full_text[:200000],  # safety cap
+                "text": full_text
             },
         )
 
