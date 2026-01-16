@@ -76,7 +76,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         if last_action == "UPDATE_DRAFT":
             response = NextStep(action=Action.VALIDATE, instruction=None, query=None, k=None, rationale="guardrail: validate after update")
             return {
-                "messages": trimmed_messages(state, [create_planner_message(response, draft)]),
+                "messages": trimmed_messages(state, [create_planner_message(response)]),
                 "orchestrator_decision": response
             }
 
@@ -84,7 +84,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         if last_action == "VALIDATE" and validation_ok:
             response = NextStep(action=Action.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: finish after successful validation")
             return {
-                "messages": trimmed_messages(state, [create_planner_message(response, draft)]),
+                "messages": trimmed_messages(state, [create_planner_message(response)]),
                 "orchestrator_decision": response
             }
 
