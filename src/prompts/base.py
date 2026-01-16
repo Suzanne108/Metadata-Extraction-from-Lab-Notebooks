@@ -10,4 +10,3 @@ class Prompt:
     version: str
     template: str
     input_variables: List[str]
-    #TODO: we could add fields here to define the output schema.

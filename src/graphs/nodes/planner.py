@@ -1,12 +1,14 @@
-from src.graphs.utils import NextStep, NextStepLLM, Action, trimmed_messages
-from src.state.v3 import ISAExtractionStateV3
+import json
+
 from langchain.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+
+from src.graphs.types.Action import Action
+from src.graphs.types.NextStep import NextStep, NextStepLLM
+from src.graphs.utils import trimmed_messages
+from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
 from src.prompts.registry import PromptRegistry
-
-
-import json
 
 #TODO: refactor so that the inference prompt can be given as argument
 
@@ -23,7 +25,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
                 )
             return r  # already NextStep from guardrails
 
-    def create_planner_message(response, draft, current_task_str) -> AIMessage:
+    def create_planner_message(response) -> AIMessage:
         "Creates an AIMessage from the NextStep response"
 
         content = f"Next Action: {response.action.value}\n"
@@ -38,7 +40,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         return AIMessage(content=content)
 
 
-    def _all_tasks_completed(state: ISAExtractionStateV3) -> bool:
+    def _all_tasks_completed(state: ISAExtractionState) -> bool:
         tasks = state.get("tasks") or []
         if not tasks:
             return False
@@ -47,7 +49,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         except Exception:
             return False
 
-    def planner(state: ISAExtractionStateV3 ) -> dict:
+    def planner(state: ISAExtractionState ) -> dict:
         "Decides next action based on the current state"
 
         # Deterministic pre-checks (guardrails) before calling the LLM
@@ -66,7 +68,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         if tasks_done:
             response = NextStep(action=Action.STOP, instruction=None, query=None, k=None, rationale="guardrail: all tasks completed → END")
             return {
-                "messages": trimmed_messages(state, [create_planner_message(response, draft, "Pre-LLM guardrail")]),
+                "messages": trimmed_messages(state, [create_planner_message(response)]),
                 "orchestrator_decision": response
             }
 
@@ -74,7 +76,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         if last_action == "UPDATE_DRAFT":
             response = NextStep(action=Action.VALIDATE, instruction=None, query=None, k=None, rationale="guardrail: validate after update")
             return {
-                "messages": trimmed_messages(state, [create_planner_message(response, draft, "Pre-LLM guardrail")]),
+                "messages": trimmed_messages(state, [create_planner_message(response, draft)]),
                 "orchestrator_decision": response
             }
 
@@ -82,7 +84,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         if last_action == "VALIDATE" and validation_ok:
             response = NextStep(action=Action.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: finish after successful validation")
             return {
-                "messages": trimmed_messages(state, [create_planner_message(response, draft, "Pre-LLM guardrail")]),
+                "messages": trimmed_messages(state, [create_planner_message(response, draft)]),
                 "orchestrator_decision": response
             }
 
@@ -134,7 +136,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
 
         # Emit only the new planner message; LangGraph's additive channel will accumulate.
         return {
-            "messages": [create_planner_message(response_internal, draft, current_task_str)],
+            "messages": [create_planner_message(response_internal)],
             "orchestrator_decision": response_internal
         }
 

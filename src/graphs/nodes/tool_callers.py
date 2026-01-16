@@ -1,13 +1,13 @@
-from src.state.v3 import ISAExtractionStateV3
-from src.tools import get_schema, validate_ISA_schema
-from langchain.messages import AIMessage, ToolMessage
+from src.state import ISAExtractionState
+from src.tools import validate_ISA_schema
+from langchain.messages import ToolMessage
 from langchain_core.tools import StructuredTool
 import json as _json
     
 
 def create_search_document_caller(search_document_tool: StructuredTool):
 
-    def search_document_caller(state: ISAExtractionStateV3):
+    def search_document_caller(state: ISAExtractionState):
         if not state['orchestrator_decision'].query:
             return{
                 "messages": [ToolMessage(content="No query provided for document search.", tool_call_id="search_document")]
@@ -15,7 +15,6 @@ def create_search_document_caller(search_document_tool: StructuredTool):
         query = state['orchestrator_decision'].query
 
         # Call the search document tool
-        # in src/graphs/nodes/tool_callers.py -> create_search_document_caller
         if hasattr(search_document_tool, "run"):
             results = search_document_tool.run(query, k=state['orchestrator_decision'].k or 1)
         elif callable(search_document_tool):
@@ -41,7 +40,7 @@ def create_search_document_caller(search_document_tool: StructuredTool):
     
     return search_document_caller
 
-def validate(state: ISAExtractionStateV3):
+def validate(state: ISAExtractionState):
     draft_isa_metadata = state.get("draft_isa_metadata")
     if not draft_isa_metadata:
         message = "No draft ISA metadata to validate."

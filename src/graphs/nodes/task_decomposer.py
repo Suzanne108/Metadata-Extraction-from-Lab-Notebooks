@@ -1,12 +1,16 @@
-from src.state.v3 import ISAExtractionStateV3, TaskList
+from typing import List
+
 from langchain_openai import ChatOpenAI
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
+
+from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
+from src.task import Task
 
 
 def create_task_decomposer(model: ChatOpenAI, system_prompt: str, inference_prompt_template: str):
 
-    def task_decomposer(state: ISAExtractionStateV3) -> dict:
+    def task_decomposer(state: ISAExtractionState) -> dict:
         overview_text = state.get("document_overview", "") or ""
         prompt = render_prompt(
             inference_prompt_template,
@@ -17,7 +21,7 @@ def create_task_decomposer(model: ChatOpenAI, system_prompt: str, inference_prom
 
         # Model is expected to be bound with structured output at workflow construction
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
-        response : TaskList = model.invoke(messages)
+        response : List[Task] = model.invoke(messages)
 
         preview = response.tasks[:3]
         message_summary = f"Planned {len(response.tasks)} tasks.\nPreview: {preview}" if response.tasks else "No tasks parsed."

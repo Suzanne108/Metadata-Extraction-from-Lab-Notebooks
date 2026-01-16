@@ -1,23 +1,15 @@
-from typing import TypedDict, Annotated, Any, List, Literal
-from langchain.messages import AnyMessage
 import operator
+
+from typing import TypedDict, Annotated, List
+
+from langchain.messages import AnyMessage
 from langchain_core.documents import Document
-from src.graphs.utils import NextStep
-from pydantic import BaseModel
+from src.graphs.types.NextStep import NextStep
+
+from src.task import Task
 
 
-class Task(BaseModel):
-    kind: Literal["investigation", "study", "assay", "material", "process", "protocol", "factor", "data"]
-    target: str
-    instruction: str
-    status: Literal["pending", "in-progress", "completed"]
-
-
-class TaskList(BaseModel):
-    tasks: List[Task]
-
-
-class ISAExtractionStateV3(TypedDict):
+class ISAExtractionState(TypedDict):
     """Extended state for staged workflow: overview -> decomposition -> planner loop."""
 
     # Document to extract from

@@ -1,7 +1,7 @@
 
 
 import json
-from src.state.v3 import ISAExtractionStateV3
+from src.state import ISAExtractionState
 from langchain_openai import ChatOpenAI
 from langchain.messages import AIMessage, SystemMessage, HumanMessage
 from src.prompts.renderer import render_prompt
@@ -34,7 +34,7 @@ def _enforce_investigation_skeleton(draft: dict) -> dict:
 
 def create_ISA_updater(model: ChatOpenAI, schema_getter_tools: List, system_prompt: str, inference_prompt_template: str):
 
-    def ISA_updater(state: ISAExtractionStateV3) -> dict:
+    def ISA_updater(state: ISAExtractionState) -> dict:
 
         draft_isa_metadata = state.get("draft_isa_metadata", {})
         instruction = state['orchestrator_decision'].instruction

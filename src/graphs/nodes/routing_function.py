@@ -1,8 +1,9 @@
-from src.state.v3 import ISAExtractionStateV3
-from src.graphs.utils import Action, Node
+from src.state import ISAExtractionState
+from src.graphs.types.Action import Action
+from src.graphs.types.Node import Node
 
 
-def routing_function(state: ISAExtractionStateV3) -> str:
+def routing_function(state: ISAExtractionState) -> str:
     """Map the planner's enum action to a concrete graph node label.
 
     Using explicit enum mapping avoids brittle string matching that can

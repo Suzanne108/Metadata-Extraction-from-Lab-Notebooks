@@ -1,11 +1,13 @@
 from typing import List, Optional
 from langchain.messages import AIMessage
-from src.state.v3 import ISAExtractionStateV3, Task
-from src.graphs.utils import Action
+from src.state import ISAExtractionState
+from src.graphs.types.Action import Action
+from src.task import Task
 
 
 def create_task_progressor():
-    def task_progressor(state: ISAExtractionStateV3) -> dict:
+    
+    def task_progressor(state: ISAExtractionState) -> dict:
         tasks: Optional[List[Task]] = state.get("tasks") or []
         new_messages: List[AIMessage] = []
         if not tasks:

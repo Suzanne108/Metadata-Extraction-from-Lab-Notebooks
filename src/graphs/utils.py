@@ -1,18 +1,18 @@
-from enum import Enum
+
 from pathlib import Path
 import time
 import os
-from src.schema import Schema
-from pydantic import BaseModel, Field
-from langgraph.graph import StateGraph
-
-from src.document_processing import DocumentManager
-from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod
-from IPython.display import display, HTML, Image
-from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import ToolMessage
 from typing import List
 import json
+
+from langgraph.graph import StateGraph
+
+from langchain_core.runnables.graph import MermaidDrawMethod
+from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import ToolMessage
+
+from src.document_processing import DocumentManager
+
 
 
 # ---- Logging helpers ----
@@ -54,7 +54,12 @@ def _diff_tasks(prev_keys: set[str], curr_list: List) -> tuple[str, set[str]]:
     except Exception:
         return ("", prev_keys)
 
+def index_document(document_path) -> DocumentManager:
+    doc_manager = DocumentManager()
 
+    doc_manager.embed_documents(document_path)
+
+    return doc_manager
 
 def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: int = 10):
     """
@@ -126,34 +131,6 @@ def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: 
     return response
 
 
-class Action(Enum):
-    SEARCH_DOCUMENT = "search contextual document"
-    #REQUEST_SCHEMA = "schema agent"
-    VALIDATE = "validate current version"
-    UPDATE_DRAFT = "ISA drafting agent"
-    FINISH_TASK = "task progress"
-    STOP = "END"
-
-class Node(Enum):
-    ISA_OVERVIEW = "ISA overview"
-    DOC_OVERVIEW = "document overview"
-    TASK_DECOMPOSER = "task planning"
-    SEARCH_DOCUMENT = "search contextual document"
-    SCHEMA_SUMMARIZER_AGENT= "schema agent"
-    TASK_PROGRESS = "task progress"
-    VALIDATE = "validate current version"
-    UPDATE_DRAFT_AGENT = "ISA drafting agent"
-    PLANNER_AGENT = "planner agent"
-    STOP = "END"
-
-
-class NextStep(BaseModel):
-    action: Action = Field(description= "The next step to perform")
-    instruction: str | None = Field(description= "In case of action update_draft, the instruction to be given to the ISA updater agent")
-    query: str | None = Field(description= "In case of action search_document, the query to search the document with")
-    k: int | None = Field(description= "In case of search_document, the amount of semantically relevant pieces to retrieve")
-    rationale: str = Field(description= "The reason for choosing this action")
-
 def trimmed_messages(state: dict, additions: list | None = None, max_messages: int = 30, max_total_chars: int = 60000):
     """Return a bounded list of messages by appending `additions` then trimming.
 
@@ -189,28 +166,6 @@ def trimmed_messages(state: dict, additions: list | None = None, max_messages: i
         kept.append(m)
     kept.reverse()
     return kept
-
-# LLM-visible actions exclude STOP/END (termination is system-driven)
-class ActionLLM(Enum):
-    SEARCH_DOCUMENT = "search contextual document"
-    VALIDATE = "validate current version"
-    UPDATE_DRAFT = "ISA drafting agent"
-
-
-class NextStepLLM(BaseModel):
-    action: ActionLLM = Field(description="The next step to perform (LLM-restricted)")
-    instruction: str | None = Field(description="In case of action update_draft, the instruction to be given to the ISA updater agent")
-    query: str | None = Field(description="In case of action search_document, the query to search the document with")
-    k: int | None = Field(description="In case of search_document, the amount of semantically relevant pieces to retrieve")
-    rationale: str = Field(description="The reason for choosing this action")
-
-
-def index_document(document_path) -> DocumentManager:
-    doc_manager = DocumentManager()
-
-    doc_manager.embed_documents(document_path)
-
-    return doc_manager
 
 def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
     """

@@ -1,4 +1,4 @@
-from src.state.v3 import ISAExtractionStateV3
+from src.state import ISAExtractionState
 from langchain_openai import ChatOpenAI
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
 from src.prompts.renderer import render_prompt
@@ -6,7 +6,7 @@ from src.prompts.renderer import render_prompt
 
 def create_document_overview(model: ChatOpenAI, system_prompt: str, inference_prompt_template: str):
 
-    def document_overview(state: ISAExtractionStateV3) -> dict:
+    def document_overview(state: ISAExtractionState) -> dict:
         mental_model = state.get("isa_mental_model", "") or ""
         raw_doc = state.get("document")
 
