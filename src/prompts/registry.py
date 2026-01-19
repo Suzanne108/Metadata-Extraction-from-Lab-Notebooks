@@ -19,10 +19,13 @@ class PromptRegistry:
     @classmethod
     def _load_from_directory(cls, root: Path) -> None:
         """Loads all prompts from the specified directory."""
-
         for path in root.rglob("*.yaml"):
-            prompt = cls._load_prompt(path)
-            cls._register(prompt)
+            try:
+                prompt = cls._load_prompt(path)
+                cls._register(prompt)
+            except Exception as e:
+                # Provide clear feedback about which file failed to load
+                print(f"[PromptRegistry] Skipping invalid YAML at {path}: {e}")
 
     @classmethod
     def _register(cls, prompt: Prompt) -> None:
@@ -44,6 +47,14 @@ class PromptRegistry:
    
         with open(path, "r", encoding="utf-8") as file:
             data = yaml.safe_load(file)
+
+        if not isinstance(data, dict):
+            raise ValueError("YAML content is empty or not a mapping")
+
+        required_keys = {"name", "version", "template", "input_variables"}
+        missing = [k for k in required_keys if k not in data]
+        if missing:
+            raise ValueError(f"Missing required keys: {', '.join(missing)}")
 
         return Prompt(
             name=data["name"],

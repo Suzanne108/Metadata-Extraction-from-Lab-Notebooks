@@ -1,18 +1,65 @@
-from enum import Enum
+
 from pathlib import Path
 import time
 import os
-from src.schema import Schema
-from pydantic import BaseModel, Field
+from typing import List
+import json
+
 from langgraph.graph import StateGraph
 
-from src.document_processing import DocumentManager
-from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod
-from IPython.display import display, HTML, Image
+from langchain_core.runnables.graph import MermaidDrawMethod
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import ToolMessage
-from typing import List
 
+from src.document_processing import DocumentManager
+
+
+
+# ---- Logging helpers ----
+
+def _normalize_task_obj(t) -> dict:
+    if hasattr(t, "dict"):
+        return t.dict()
+    if isinstance(t, dict):
+        return t
+    return {"raw": str(t)}
+
+
+def _task_signature(tdict: dict) -> str:
+    kind = tdict.get("kind", "?")
+    target = tdict.get("target", "?")
+    instr = tdict.get("instruction", "")
+    return f"{kind}::{target}::{instr[:80]}"
+
+
+def _diff_tasks(prev_keys: set[str], curr_list: List) -> tuple[str, set[str]]:
+    try:
+        curr_keys = {_task_signature(_normalize_task_obj(t)) for t in (curr_list or [])}
+        added = curr_keys - prev_keys
+        removed = prev_keys - curr_keys
+        lines = []
+        if added:
+            lines.append("   Tasks added:")
+            for k in list(added)[:10]:
+                lines.append(f"      + {k}")
+            if len(added) > 10:
+                lines.append(f"      (+{len(added)-10} more)")
+        if removed:
+            lines.append("   Tasks removed:")
+            for k in list(removed)[:10]:
+                lines.append(f"      - {k}")
+            if len(removed) > 10:
+                lines.append(f"      (+{len(removed)-10} more)")
+        return ("\n".join(lines) + ("\n" if lines else ""), curr_keys)
+    except Exception:
+        return ("", prev_keys)
+
+def index_document(document_path) -> DocumentManager:
+    doc_manager = DocumentManager()
+
+    doc_manager.embed_documents(document_path)
+
+    return doc_manager
 
 def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: int = 10):
     """
@@ -47,6 +94,8 @@ def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: 
                 tool_name = tool_call['name']
                 tool_args = tool_call.get('args', {})
                 tool_call_id = tool_call['id']
+
+                print(f"Invoking tool: {tool_name} with args: {tool_args}")
                 
                 # Look up the tool function
                 if tool_name in tool_map:
@@ -84,39 +133,43 @@ def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: 
     return response
 
 
-class Action(Enum):
-    SEARCH_DOCUMENT = "search contextual document"
-    REQUEST_SCHEMA = "schema agent"
-    VALIDATE = "validate current version"
-    UPDATE_DRAFT = "ISA drafting agent"
-    STOP = "END"
+def trimmed_messages(state: dict, additions: list | None = None, max_messages: int = 30, max_total_chars: int = 60000):
+    """Return a bounded list of messages by appending `additions` then trimming.
 
-class Node(Enum):
-    SEARCH_DOCUMENT = "search contextual document"
-    SCHEMA_SUMMARIZER_AGENT= "schema agent"
-    VALIDATE = "validate current version"
-    UPDATE_DRAFT_AGENT = "ISA drafting agent"
-    PLANNER_AGENT = "planner agent"
-    STOP = "END"
+    - Keeps only the latest `max_messages` messages
+    - Also enforces an approximate character budget across message.contents
+    This reduces unbounded growth of the `messages` channel while preserving
+    most recent context for routing/diagnostics.
+    """
+    msgs = list(state.get("messages", []) or [])
+    if additions:
+        if isinstance(additions, list):
+            msgs.extend(additions)
+        else:
+            msgs.append(additions)
 
+    # Limit by count first
+    if len(msgs) > max_messages:
+        msgs = msgs[-max_messages:]
 
-class NextStep(BaseModel):
-    action: Action = Field(description= "The next step to perform")
-    instruction: str | None = Field(description= "In case of action update_draft, the instruction to be given to the ISA updater agent")
-    query: str | None = Field(description= "In case of action search_document, the query to search the document with")
-    k: int | None = Field(description= "In case of search_document, the amount of semantically relevant pieces to retrieve")
-    rationale: str = Field(description= "The reason for choosing this action")
+    # Then enforce a coarse character budget (drop oldest first)
+    def _content_len(m):
+        try:
+            return len(getattr(m, "content", "") or "")
+        except Exception:
+            return 0
 
+    total = 0
+    kept: list = []
+    for m in reversed(msgs):
+        total += _content_len(m)
+        if total > max_total_chars and kept:
+            break
+        kept.append(m)
+    kept.reverse()
+    return kept
 
-def index_document() -> DocumentManager:
-    path = Path.cwd() / "papers" / "Image-based_methods_for_phenotyping_growth_dynamics_and_fitness_components_in_arabidopsis_thaliana.pdf "
-    doc_manager = DocumentManager()
-
-    doc_manager.embed_documents(path)
-
-    return doc_manager
-
-def stream_messages(agent, state, config: RunnableConfig = None, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
+def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
     """
     Stream agent steps to stdout and also append them efficiently to `output_path`.
 
@@ -127,7 +180,7 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
     print("Streaming agent steps:\n")
 
     if output_path is None:
-        output_path = Path.cwd() / "output" / "stream_log.txt"
+        output_path = Path.cwd() / "output" / f"stream_log_{run_id}.txt"
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -136,6 +189,9 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
 
     f = output_path.open("a", encoding="utf-8", buffering=1)  # line-buffered; we'll control flush explicitly
     try:
+        # Track state to capture deltas for tasks across updates
+        last_task_keys: set[str] = set()
+
         for chunk in agent.stream(state, stream_mode="updates", config=config):
             for node_name, data in chunk.items():
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -144,7 +200,7 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
 
                 # Compose the message content to both print and log
                 body = ""
-                if "messages" in data:
+                if isinstance(data, dict) and "messages" in data:
                     message = data["messages"][-1]
                     if hasattr(message, "tool_calls") and message.tool_calls:
                         tc = message.tool_calls[0]
@@ -163,6 +219,12 @@ def stream_messages(agent, state, config: RunnableConfig = None, output_path: st
                         print()
                 else:
                     body += "   (no messages)\n"
+
+                # Detect and log newly added tasks (if tasks list is present in the update)
+                if isinstance(data, dict)  and "tasks" in data:
+                    lines, last_task_keys = _diff_tasks(last_task_keys, data.get("tasks"))
+                    if lines:
+                        body += lines
 
                 # Add a blank line separator for readability
                 footer = "\n"
@@ -232,3 +294,13 @@ def visualise_graph(app: StateGraph, output_path: str | Path = None):
     
     print(f"Graph visualization saved to: {output_path}")
     
+
+def write_final_state(final_state, run_id: str, output_path: str | Path = None) -> Path:
+    if output_path is None:
+        output_path = Path.cwd() / "output" / f"isa_draft_{run_id}.json"
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    draft = final_state.get("draft_isa_metadata") if isinstance(final_state, dict) else getattr(final_state, "draft_isa_metadata", {})
+    with p.open("w", encoding="utf-8") as f:
+        json.dump(draft or {}, f, ensure_ascii=False, indent=2)
+    return p

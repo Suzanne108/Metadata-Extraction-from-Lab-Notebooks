@@ -23,10 +23,13 @@ class Schema(Enum):
     ORGANIZATION = ("Organization", "organization_schema.json")
     PERSON = ("Person", "person_schema.json")
     PROTOCOL = ("Protocol", "protocol_schema.json")
+    PROTOCOL_PARAMETER = ("Protocol Parameter", "protocol_parameter_schema.json")
     PUBLICATION = ("Publication", "publication_schema.json")
     SAMPLE = ("Sample", "sample_schema.json")
     SOURCE = ("Source", "source_schema.json")
     STUDY = ("Study", "study_schema.json")
+    PROCESS = ("Process", "process_schema.json")
+    PROCESS_PARAMETER_VALUE = ("Process Parameter Value", "process_parameter_value_schema.json")
 
     def get_file_name(self) -> str:
         """

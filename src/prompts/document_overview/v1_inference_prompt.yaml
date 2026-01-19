@@ -1,0 +1,24 @@
+name: document_overview
+version: v1-inference
+
+input_variables:
+- mental_model
+- text
+
+template: |
+  Using the ISA mental model and the article text, produce a structured plain-text overview of WHICH ISA-relevant elements are present. Assign numeric IDs (e.g., Study #1, Assay #1) for stable references. Do NOT output JSON and do NOT propose tasks.
+
+  ISA Mental Model:
+  ---
+  {mental_model}
+  ---
+
+  Article Text (may be truncated):
+  ---
+  {text}
+  ---
+  Output format guidance:
+  - Start with a 3–6 sentence summary.
+  - Enumerate Investigations, Studies, Assays, Protocols/Processes, Materials, Factors, Data files/modalities.
+  - Use numbered IDs per entity.
+  - Include brief one-line descriptions and any notable uncertainties.
