@@ -94,6 +94,8 @@ def invoke_model_with_tools(model, messages: list, tools: List, max_iterations: 
                 tool_name = tool_call['name']
                 tool_args = tool_call.get('args', {})
                 tool_call_id = tool_call['id']
+
+                print(f"Invoking tool: {tool_name} with args: {tool_args}")
                 
                 # Look up the tool function
                 if tool_name in tool_map:

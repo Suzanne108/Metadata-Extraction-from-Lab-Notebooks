@@ -21,6 +21,10 @@ class ISAExtractionState(TypedDict):
     # The latest validation results
     validation_result: dict | None
 
+    # Count of consecutive validation failures and last failing path (for guardrails)
+    consecutive_validation_failures: int | None
+    last_validation_json_path: str | None
+
     # The latest decision from the orchestrator
     orchestrator_decision: NextStep | None
 

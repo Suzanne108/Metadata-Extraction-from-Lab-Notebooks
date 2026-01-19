@@ -61,13 +61,30 @@ def validate(state: ISAExtractionState):
     else:
         validation_result = "Was not able to call validation tool."
 
-    # Add validation result to messages
+    # Track consecutive failures and last failing path
+    failures = int(state.get("consecutive_validation_failures") or 0)
+    last_path = None
+    try:
+        is_valid = bool((validation_result or {}).get("valid") is True)
+    except Exception:
+        is_valid = False
+
+    if not is_valid:
+        failures += 1
+        last_path = (validation_result or {}).get("json_path")
+    else:
+        failures = 0
+        last_path = None
+
+    # Add validation result to messages and state
     return {
         "messages": [ToolMessage(
             content=f"NODE: VALIDATE; result: {_json.dumps(validation_result, ensure_ascii=False)}",
             tool_call_id="validation"
             )],
             "validation_result": validation_result,
+            "consecutive_validation_failures": failures,
+            "last_validation_json_path": last_path,
             "last_action": "VALIDATE"
         }
 

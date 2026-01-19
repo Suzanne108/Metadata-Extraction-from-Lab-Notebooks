@@ -42,7 +42,7 @@ def create_schema_getter() -> List:
              return get_schema
         
         tools.append(make_tool(schema))
-    
+
     return tools
 
 def get_schema(s: Schema) -> Dict:

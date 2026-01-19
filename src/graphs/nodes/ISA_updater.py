@@ -45,14 +45,15 @@ def create_ISA_updater(model: ChatOpenAI, schema_getter_tools: List, system_prom
             {
                 "draft_isa_metadata": draft_isa_metadata,
                 "instruction": instruction,
-                "latest_evidence": latest_evidence
+                "latest_evidence": latest_evidence,
+                "validation_result": state.get("validation_result") or {}
             }
         )
 
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
 
         # Invoke model with tool-calling support
-        response = invoke_model_with_tools(model, messages, schema_getter_tools, max_iterations=20)
+        response = invoke_model_with_tools(model, messages, schema_getter_tools, max_iterations=30)
 
         # Parse the response and update the state
         try:
