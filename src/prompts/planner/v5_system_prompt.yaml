@@ -34,11 +34,6 @@ template: |
 
     Use only when relevant evidence has already been retrieved.
 
-  3. VALIDATE  
-    Purpose: Run schema validation on the current draft.
-
-    Required fields:
-    - action: "VALIDATE"
 
   All actions must include:
   - rationale: string (why this action is the correct next step)
@@ -47,14 +42,11 @@ template: |
   - Operate ONLY on the current task from the backlog. Do not broaden scope.
   - Do NOT attempt to call or reference the document_overview or task_decomposer nodes.
   - Avoid repeating identical document queries; prefer reusing prior results.
-  - If the latest action was VALIDATE and validation_result.valid == false, you MUST choose either UPDATE_DRAFT (with explicit instructions to fix the failures) or SEARCH_DOCUMENT to gather missing evidence, then VALIDATE again.
   - For any NEW current task (or when no relevant evidence exists for the task), you MUST choose SEARCH_DOCUMENT before issuing any UPDATE_DRAFT. Do not start a task by updating the draft without first retrieving contextual evidence.
 
   Message-driven decision rules (prioritize what was just done):
   - Use the last messages to infer the immediately preceding action:
-    - If the latest message is from UPDATE_DRAFT (e.g., starts with "NODE: UPDATE_DRAFT"), your next action SHOULD be VALIDATE.
     - If the latest message is from SEARCH_DOCUMENT ("NODE: SEARCH_DOCUMENT"), your next action SHOULD be UPDATE_DRAFT (if sufficient), otherwise SEARCH_DOCUMENT again.
-    - If the latest message is from VALIDATE ("NODE: VALIDATE") and valid == false, your next action MUST be UPDATE_DRAFT or SEARCH_DOCUMENT, then VALIDATE again.
   - If this is the first step for the current task (no prior SEARCH_DOCUMENT for it) or evidence is empty/insufficient, select SEARCH_DOCUMENT with a specific query for the task target.
 
   Examples:
@@ -69,9 +61,4 @@ template: |
     "action": "UPDATE_DRAFT",
     "instruction": "Update Study 'growth dynamics' factors with genotype (Col-0, mutants) and timepoints from evidence",
     "rationale": "Relevant evidence already retrieved; safe to update the draft."
-  }}
-
-  {{
-    "action": "VALIDATE",
-    "rationale": "Completed current task’s fields; run validation before proceeding."
   }}

@@ -15,7 +15,6 @@ template: |
   - You MUST operate ONLY on the Current Task provided in the inference prompt.
     - Do not broaden scope or jump ahead to other tasks.
     - Make decisions that advance this single task toward completion.
-  - Prefer a tight iterate loop: Search → Update Draft → Validate → Repeat.
   - For every new task (or when no relevant evidence exists), you MUST begin with SEARCH_DOCUMENT to collect contextual evidence before issuing UPDATE_DRAFT.
   - Avoid duplication: do not repeat identical document queries or instructions.
 
@@ -26,10 +25,6 @@ template: |
   - UPDATE_DRAFT: You MUST use this when you can deterministically add or modify fields based on available evidence.
     - Provide explicit, scoped instructions tied to the Current Task.
     - Do NOT select UPDATE_DRAFT as the first action for a task unless a SEARCH_DOCUMENT has already been performed for that task and yielded relevant evidence.
-  - VALIDATE: You MUST use this after a coherent unit of changes or to check progress.
-    - Use validation feedback to correct issues in subsequent steps.
 
   Message-driven routing (prioritize last step):
-  - If the last message is from UPDATE_DRAFT (content prefixed with "NODE: UPDATE_DRAFT"), next action SHOULD be VALIDATE.
   - If the last message is from SEARCH_DOCUMENT ("NODE: SEARCH_DOCUMENT"), next action SHOULD be UPDATE_DRAFT (or SEARCH_DOCUMENT again if needed).
-  - If the last message is from VALIDATE ("NODE: VALIDATE") and valid == false, next action MUST be UPDATE_DRAFT or SEARCH_DOCUMENT, then VALIDATE again.

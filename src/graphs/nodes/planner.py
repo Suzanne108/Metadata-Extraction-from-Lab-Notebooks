@@ -54,8 +54,8 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
 
         # Deterministic pre-checks (guardrails) before calling the LLM
         last_action = (state.get("last_action") or "").upper()
-        validation_ok = bool((state.get("validation_result") or {}).get("valid") is True)
-        consecutive_failures = int(state.get("consecutive_validation_failures") or 0)
+        #validation_ok = bool((state.get("validation_result") or {}).get("valid") is True)
+        #consecutive_failures = int(state.get("consecutive_validation_failures") or 0)
         tasks_done = _all_tasks_completed(state)
 
         vr = state.get("validation_result") or {}
@@ -73,30 +73,13 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
                 "orchestrator_decision": response
             }
 
-        # 1) After UPDATE_DRAFT → VALIDATE next
+        #After UPDATE_DRAFT → Next task
         if last_action == "UPDATE_DRAFT":
-            response = NextStep(action=Action.VALIDATE, instruction=None, query=None, k=None, rationale="guardrail: validate after update")
+            response = NextStep(action=Action.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: next task after update")
             return {
                 "messages": trimmed_messages(state, [create_planner_message(response)]),
                 "orchestrator_decision": response
             }
-
-        # 2) After VALIDATE + valid → FINISH_TASK
-        if last_action == "VALIDATE" and validation_ok:
-            response = NextStep(action=Action.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: finish after successful validation")
-            return {
-                "messages": trimmed_messages(state, [create_planner_message(response)]),
-                "orchestrator_decision": response
-            }
-
-        # 2b) After VALIDATE + invalid too many times → STOP for review
-        if last_action == "VALIDATE" and not validation_ok:
-            if consecutive_failures >= 5:
-                response = NextStep(action=Action.STOP, instruction=None, query=None, k=None, rationale="guardrail: too many consecutive validation failures → stop for human review")
-                return {
-                    "messages": trimmed_messages(state, [create_planner_message(response)]),
-                    "orchestrator_decision": response
-                }
 
         # Otherwise, call LLM to analyze state and decide next step
         
@@ -130,7 +113,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
             prompt_template,
             {
                 "draft": draft,
-                "validation_result": vr,
+                #"validation_result": vr,
                 "evidence": evidence,
                 "previous_messages": previous_messages,
                 "current_task": current_task_str,

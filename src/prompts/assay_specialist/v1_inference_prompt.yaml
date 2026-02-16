@@ -1,0 +1,20 @@
+name: assay_specialist
+version: v1-inference
+
+input_variables:
+  - instruction
+  - latest_evidence
+  - existing_datafiles
+  - existing_samples
+  - existing_materials
+  - existing_processes
+  - existing_assays
+
+template: |
+  Instruction: {instruction}
+  Latest evidence: {latest_evidence}
+  Existing datafiles (by uid): {existing_datafiles}
+  Existing samples (by uid): {existing_samples}
+  Existing materials (by uid): {existing_materials}
+  Existing processes (by uid): {existing_processes}
+  Existing assays (by uid): {existing_assays}

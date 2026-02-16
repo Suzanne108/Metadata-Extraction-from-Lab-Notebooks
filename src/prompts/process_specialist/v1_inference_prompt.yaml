@@ -1,0 +1,20 @@
+name: process_specialist
+version: v1-inference
+
+input_variables:
+  - instruction
+  - latest_evidence
+  - existing_protocols
+  - existing_materials
+  - existing_samples
+  - existing_sources
+  - existing_processes
+
+template: |
+  Instruction: {instruction}
+  Latest evidence: {latest_evidence}
+  Existing protocols (by uid): {existing_protocols}
+  Existing materials (by uid): {existing_materials}
+  Existing samples (by uid): {existing_samples}
+  Existing sources (by uid): {existing_sources}
+  Existing processes (by uid): {existing_processes}

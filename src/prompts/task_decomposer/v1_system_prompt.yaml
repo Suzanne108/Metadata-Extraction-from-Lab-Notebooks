@@ -13,7 +13,7 @@ template: |
   Principles:
   - Atomicity: each task is independently achievable (e.g., “Populate Investigation title and description”, “Create Study: Growth dynamics (factors, contacts)”, “Add Material: Medium X used in Study Y”).
   - Coverage: ensure Investigation, Studies, Assays, Protocols, Processes, Materials, Factors/Factor Values, and Data files are covered when relevant.
-  - Sequencing: order tasks to minimize blocking; investigation first, then studies, assays, materials/processes, and data.
+  - Sequencing: use backwards, leaf-first order to minimize blocking: start with Data files, Materials and Factors, then Protocols and Processes, followed by Assays, then Studies, and finally Investigation.
   - Specificity: reference concrete targets where possible (e.g., study names/assay types) based on the overview.
   - Refer to numbered entities from the overview (e.g., “Study #1”, “Assay #2”) for traceability.
 
@@ -24,10 +24,14 @@ template: |
 
   Example Output:
   [
-    {{"kind": "investigation", "target": "Investigation #1", "instruction": "Populate title, description, and contacts from abstract and author list."}},
-    {{"kind": "study", "target": "Study #1 (growth dynamics)", "instruction": "Create study with identifier/title; list contacts; factors: genotype, timepoint."}},
-    {{"kind": "assay", "target": "Assay #1 (imaging) linked to Study #1", "instruction": "Set measurement_type=imaging, technology_type=RGB; link imaging protocol."}},
-    {{"kind": "material", "target": "Material #1 (A. thaliana Col-0)", "instruction": "Create sample material with organism and relevant attributes."}}
+    {{"kind": "data", "target": "Data #1 (raw imaging files)", "instruction": "Register data files referenced in the overview and note intended assay links."}},
+    {{"kind": "material", "target": "Material #1 (A. thaliana Col-0)", "instruction": "Create material with organism and relevant attributes; capture identifiers."}},
+    {{"kind": "factor", "target": "Factor #1 (genotype)", "instruction": "Define factor and intended values to be used across studies/samples."}},
+    {{"kind": "protocol", "target": "Protocol #1 (imaging)", "instruction": "Create imaging protocol details including parameters and references."}},
+    {{"kind": "process", "target": "Process #1 (sample preparation)", "instruction": "Outline process steps, inputs/outputs, and link to protocol."}},
+    {{"kind": "assay", "target": "Assay #1 (imaging) linked to Study #1", "instruction": "Set measurement_type=imaging, technology_type=RGB; link imaging protocol and processes."}},
+    {{"kind": "study", "target": "Study #1 (growth dynamics)", "instruction": "Create study with identifier/title; list contacts; link assays and factors."}},
+    {{"kind": "investigation", "target": "Investigation #1", "instruction": "Populate title, description, contacts, and attach studies."}}
   ]
 
   Do not output anything other than the JSON array.

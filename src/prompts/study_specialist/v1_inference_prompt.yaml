@@ -1,0 +1,22 @@
+name: study_specialist
+version: v1-inference
+
+input_variables:
+  - instruction
+  - latest_evidence
+  - existing_assays
+  - existing_factors
+  - existing_sources
+  - existing_samples
+  - existing_materials
+  - existing_studies
+
+template: |
+  Instruction: {instruction}
+  Latest evidence: {latest_evidence}
+  Existing assays (by uid): {existing_assays}
+  Existing factors (by uid): {existing_factors}
+  Existing sources (by uid): {existing_sources}
+  Existing samples (by uid): {existing_samples}
+  Existing materials (by uid): {existing_materials}
+  Existing studies (by uid): {existing_studies}

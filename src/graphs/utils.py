@@ -2,7 +2,7 @@
 from pathlib import Path
 import time
 import os
-from typing import List
+from typing import List, Any, Dict
 import json
 
 from langgraph.graph import StateGraph
@@ -12,6 +12,167 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import ToolMessage
 
 from src.document_processing import DocumentManager
+from pydantic import BaseModel
+import hashlib
+
+
+# ---- DTO registry & UID helpers ----
+
+def _model_to_dict_safe(model: BaseModel) -> dict:
+    try:
+        # Pydantic v2
+        return model.model_dump()
+    except Exception:
+        try:
+            return model.dict()
+        except Exception:
+            return {}
+
+
+def _natural_key(dto: BaseModel) -> str:
+    """Compute a deterministic natural key string based on known fields per DTO type.
+    Falls back to a hash of the entire model dict if specifics are unavailable.
+    """
+    t = type(dto).__name__
+    d = _model_to_dict_safe(dto)
+
+    def pick(*keys):
+        vals = [str(d.get(k) or "") for k in keys]
+        return "::".join(vals)
+
+    if t == "InvestigationDTO":
+        key = pick("identifier", "title")
+    elif t == "StudyDTO":
+        key = pick("identifier", "title")
+    elif t == "AssayDTO":
+        mt = d.get("measurement_type") or {}
+        tt = d.get("technology_type") or {}
+        key = "::".join([
+            str(d.get("technology_platform") or ""),
+            str(mt.get("term") if isinstance(mt, dict) else ""),
+            str(tt.get("term") if isinstance(tt, dict) else ""),
+        ])
+    elif t == "DataDTO":
+        key = pick("name", "type")
+    elif t == "ProcessDTO":
+        key = pick("name", "date", "performer")
+    elif t == "ProtocolDTO":
+        key = pick("name", "version", "uri")
+    elif t == "FactorDTO":
+        key = pick("factor_name")
+    elif t == "FactorValueDTO":
+        key = pick("category_name", "value_text", "unit_text")
+    elif t == "SourceDTO":
+        key = pick("name")
+    elif t == "SampleDTO":
+        key = pick("name")
+    elif t == "MaterialDTO":
+        key = pick("name", "type")
+    elif t == "PublicationDTO":
+        key = pick("doi", "pubmed_id", "title")
+    elif t == "PersonDTO":
+        # Prefer explicit id if present
+        key = d.get("id") or "::".join([str(d.get("first_name") or ""), str(d.get("last_name") or ""), str(d.get("email") or "")])
+    else:
+        # Fallback: stable hash of dict
+        key = json.dumps(d, sort_keys=True)
+
+    if not key or key.replace(":", "").strip() == "":
+        key = json.dumps(d, sort_keys=True)
+
+    # Return a compact uid prefix + hash(key)
+    h = hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
+    return f"{t}:{h}"
+
+
+def ensure_uid(dto: BaseModel) -> str:
+    """Ensure dto.uid exists;  or compute from natural key."""
+    # If uid attribute exists and is set, return
+    if hasattr(dto, "uid"):
+        val = getattr(dto, "uid", None)
+        if val:
+            return val
+    uid = _natural_key(dto)
+    try:
+        setattr(dto, "uid", uid)
+    except Exception:
+        # Ignore if setting fails; still return computed uid
+        pass
+    return uid
+
+
+_DTO_REGISTRY_KEY_BY_CLASS: Dict[str, str] = {
+    "InvestigationDTO": "registry_investigations",
+    "StudyDTO": "registry_studies",
+    "AssayDTO": "registry_assays",
+    "DataFileDTO": "registry_data",
+    "ProcessDTO": "registry_processes",
+    "ProtocolDTO": "registry_protocols",
+    "FactorDTO": "registry_factors",
+    "FactorValueDTO": "registry_factor_values",
+    "SourceDTO": "registry_sources",
+    "SampleDTO": "registry_samples",
+    "MaterialDTO": "registry_materials"
+}
+
+
+def _get_registry_for_dto(state: dict, dto: BaseModel) -> tuple[str, Dict[str, BaseModel]]:
+    key = _DTO_REGISTRY_KEY_BY_CLASS.get(type(dto).__name__)
+    if not key:
+        return "", {}
+    reg = dict(state.get(key) or {})
+    return key, reg
+
+
+def register_dto(state: dict, dto: BaseModel) -> dict:
+    """Upsert a single DTO into its registry with merge by uid."""
+    uid = ensure_uid(dto)
+    reg_key, reg = _get_registry_for_dto(state, dto)
+    if not reg_key:
+        return {}
+    # Overwrite policy: replace any existing entry with the new DTO
+    reg[uid] = dto
+    return {reg_key: reg}
+
+
+def ensure_dto_uid_and_register(state: dict, dto: BaseModel, max_depth: int = 2) -> dict:
+    """Ensure uid and register dto and shallow-nested DTOs (lists or single) into appropriate registries.
+    Returns a dict of state updates for all touched registries.
+    """
+    updates: Dict[str, Any] = {}
+
+    def _accumulate(update: dict):
+        for k, v in (update or {}).items():
+            if isinstance(v, dict):
+                merged = dict(updates.get(k) or {})
+                merged.update(v)
+                updates[k] = merged
+            else:
+                updates[k] = v
+
+    # Register the primary dto
+    _accumulate(register_dto(state, dto))
+
+    if max_depth <= 0:
+        return updates
+
+    # Traverse shallow attributes for nested DTOs
+    d = _model_to_dict_safe(dto)
+    for attr_name, val in d.items():
+        # Check if original attribute is a BaseModel or list of BaseModel via getattr
+        try:
+            actual = getattr(dto, attr_name, None)
+        except Exception:
+            actual = None
+
+        if isinstance(actual, BaseModel):
+            _accumulate(register_dto(state | updates, actual))
+        elif isinstance(actual, list):
+            for item in actual:
+                if isinstance(item, BaseModel):
+                    _accumulate(register_dto(state | updates, item))
+
+    return updates
 
 
 
@@ -191,6 +352,43 @@ def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_
     try:
         # Track state to capture deltas for tasks across updates
         last_task_keys: set[str] = set()
+        # Maintain an aggregated view of state to allow full registry snapshots
+        aggregated_state: Dict[str, Any] = dict(state or {})
+
+        def _merge_update(base: dict, upd: dict) -> dict:
+            # Shallow merge, but for registry_* keys, merge dict values
+            out = dict(base)
+            for k, v in (upd or {}).items():
+                if isinstance(v, dict) and k.startswith("registry_"):
+                    merged = dict(out.get(k) or {})
+                    merged.update(v)
+                    out[k] = merged
+                else:
+                    out[k] = v
+            return out
+
+        def _serialize_model(obj: Any) -> Any:
+            try:
+                return obj.model_dump()
+            except Exception:
+                try:
+                    return obj.dict()
+                except Exception:
+                    return str(obj)
+
+        def _registry_snapshot_text(state_like: dict) -> str:
+            registry_keys = set(_DTO_REGISTRY_KEY_BY_CLASS.values())
+            snapshot: Dict[str, dict] = {}
+            for rk in sorted(registry_keys):
+                reg = state_like.get(rk) or {}
+                if reg:
+                    snapshot[rk] = {uid: _serialize_model(obj) for uid, obj in reg.items()}
+            if not snapshot:
+                return "   Registries snapshot: (empty)\n"
+            try:
+                return "   Registries snapshot:\n" + json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n"
+            except Exception:
+                return "   Registries snapshot: (unserializable)\n"
 
         for chunk in agent.stream(state, stream_mode="updates", config=config):
             for node_name, data in chunk.items():
@@ -200,6 +398,10 @@ def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_
 
                 # Compose the message content to both print and log
                 body = ""
+                # Merge current update into aggregated state for later snapshots
+                if isinstance(data, dict):
+                    aggregated_state = _merge_update(aggregated_state, data)
+
                 if isinstance(data, dict) and "messages" in data:
                     message = data["messages"][-1]
                     if hasattr(message, "tool_calls") and message.tool_calls:
@@ -225,6 +427,12 @@ def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_
                     lines, last_task_keys = _diff_tasks(last_task_keys, data.get("tasks"))
                     if lines:
                         body += lines
+                        # On task list change, also snapshot registries
+                        body += _registry_snapshot_text(aggregated_state)
+
+                # Also snapshot registries whenever the task progress node runs
+                if isinstance(node_name, str) and node_name.strip().lower() == "task progress":
+                    body += _registry_snapshot_text(aggregated_state)
 
                 # Add a blank line separator for readability
                 footer = "\n"
@@ -274,24 +482,39 @@ def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_
             pass
 
 
-def visualise_graph(app: StateGraph, output_path: str | Path = None):
-    """Visualise the state graph and save to output_path"""
-    
+def visualise_graph(app_or_graph: StateGraph, output_path: str | Path = None):
+    """Visualise the graph. Accepts either a compiled app (with get_graph) or an uncompiled StateGraph.
+
+    If given an uncompiled StateGraph, compiles it with an in-memory checkpointer solely for visualization.
+    """
+
     if output_path is None:
         output_path = Path.cwd() / "output" / "graph_visualization.png"
-    
+
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
+    # Obtain a Graph instance with draw_mermaid_png()
+    try:
+        if hasattr(app_or_graph, "get_graph"):
+            graph_obj = app_or_graph.get_graph()
+        else:
+            # Compile temporarily with an in-memory checkpointer for visualization
+            from langgraph.checkpoint.memory import MemorySaver
+            compiled = app_or_graph.compile(checkpointer=MemorySaver())
+            graph_obj = compiled.get_graph()
+    except Exception as e:
+        raise RuntimeError(f"Failed to prepare graph for visualization: {e}")
+
     # Generate the graph image
-    graph_image = app.get_graph().draw_mermaid_png(
+    graph_image = graph_obj.draw_mermaid_png(
         draw_method=MermaidDrawMethod.API,
     )
-    
+
     # Save to file
     with open(output_path, "wb") as f:
         f.write(graph_image)
-    
+
     print(f"Graph visualization saved to: {output_path}")
     
 

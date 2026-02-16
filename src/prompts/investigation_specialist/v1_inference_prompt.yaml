@@ -1,0 +1,14 @@
+name: investigation_specialist
+version: v1-inference
+
+input_variables:
+  - instruction
+  - latest_evidence
+  - existing_studies
+  - existing_investigations
+
+template: |
+  Instruction: {instruction}
+  Latest evidence: {latest_evidence}
+  Existing studies (by uid): {existing_studies}
+  Existing investigations (by uid): {existing_investigations}
