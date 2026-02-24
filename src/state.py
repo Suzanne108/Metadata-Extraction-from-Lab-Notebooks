@@ -29,21 +29,14 @@ class ISAExtractionState(TypedDict):
     # Document to extract from
     document: Document | List[Document]
 
-    # The latest validation results
-    validation_result: dict | None
-
-    # Count of consecutive validation failures and last failing path (for guardrails)
-    consecutive_validation_failures: int | None
-    last_validation_json_path: str | None
-
     # The latest decision from the orchestrator
     orchestrator_decision: NextStep | None
 
     # Evidence per query
-    evidence: dict[str, list[str]]
+    #evidence: dict[str, list[str]]
 
     # The latest retrieved evidence
-    latest_evidence: list[str] | None
+    #latest_evidence: list[str] | None
 
     # Orientation: plain-text ISA mental model
     isa_mental_model: str | None
@@ -67,7 +60,6 @@ class ISAExtractionState(TypedDict):
     # Team lead routing decision object
     team_lead_decision: TeamLeadDecision | None
     
-   
     # Registries of ISA objects by ID, always one investigation
     dto_investigation: InvestigationDTO | None
     registry_studies: Dict[str, StudyDTO] | None

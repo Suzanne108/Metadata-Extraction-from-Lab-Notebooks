@@ -15,6 +15,7 @@ from src.tools import create_doc_getter, create_schema_getter
 from src.graphs.utils import index_document, stream_messages, write_final_state
 from src.graphs.nodes.routing_function import routing_function, team_lead_routing
 from src.graphs.nodes.assembly import create_assembly_node
+from src.graphs.nodes.assembly_advisor import create_assembly_advisor
 from src.graphs.nodes.investigation_export import create_investigation_export_node
 from src.state import ISAExtractionState
 from src.graphs.nodes.tool_callers import create_search_document_caller, validate
@@ -229,6 +230,13 @@ def build_export_node():
     """Build the simple export node that writes ISA-JSON."""
     return create_investigation_export_node()
 
+def build_assembly_advisor_node(registry: PromptRegistry):
+    """Create the assembly advisor node with its prompts."""
+    model = get_chat_model()
+    system_prompt = render_prompt(registry.get_prompt("assembly_advisor", "v1-system"), {})
+    infer_prompt = registry.get_prompt("assembly_advisor", "v1-inference")
+    return create_assembly_advisor(model, system_prompt, infer_prompt)
+
 
 def build_graph(
     isa_overview_node,
@@ -271,7 +279,9 @@ def build_graph(
     graph.add_node(Node.MATERIAL_CREATOR.value, material_agent_node)
     graph.add_node(Node.DATAFILE_CREATOR.value, datafile_agent_node)
     #graph.add_node(Node.VALIDATE.value, validate)
-    # Final export step (temporarily replaces deterministic assembly)
+    # Advisor, deterministic assembly, then export
+    graph.add_node(Node.ASSEMBLY_ADVISOR.value, build_assembly_advisor_node(PromptRegistry()))
+    graph.add_node(Node.ASSEMBLY.value, create_assembly_node())
     graph.add_node(Node.EXPORT.value, build_export_node())
 
     # Linear pre-loop sequence
@@ -290,7 +300,7 @@ def build_graph(
             Node.SEARCH_DOCUMENT.value: Node.SEARCH_DOCUMENT.value,
             Node.TASK_PROGRESS.value: Node.TASK_PROGRESS.value,
             #Node.VALIDATE.value: Node.VALIDATE.value,
-            Node.EXPORT.value: Node.EXPORT.value,
+            Node.ASSEMBLY_ADVISOR.value: Node.ASSEMBLY_ADVISOR.value,
         },
     )
 
@@ -326,7 +336,9 @@ def build_graph(
     graph.add_edge(Node.DATAFILE_CREATOR.value, Node.PLANNER_AGENT.value)
     graph.add_edge(Node.SEARCH_DOCUMENT.value, Node.PLANNER_AGENT.value)
     #graph.add_edge(Node.VALIDATE.value, Node.PLANNER_AGENT.value)
-    # After export, end the workflow
+    # After advisor, run deterministic assembly, then export, then end
+    graph.add_edge(Node.ASSEMBLY_ADVISOR.value, Node.ASSEMBLY.value)
+    graph.add_edge(Node.ASSEMBLY.value, Node.EXPORT.value)
     graph.add_edge(Node.EXPORT.value, END)
 
     # Compile with an in-memory checkpointer so state can be retrieved

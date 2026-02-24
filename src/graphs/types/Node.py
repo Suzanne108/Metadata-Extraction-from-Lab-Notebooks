@@ -22,6 +22,7 @@ class Node(Enum):
     SAMPLE_CREATOR = "sample creator"
     MATERIAL_CREATOR = "material creator"
     DATAFILE_CREATOR = "datafile creator"
+    ASSEMBLY_ADVISOR = "assembly advisor"
     ASSEMBLY = "deterministic assembly"
     PLANNER_AGENT = "planner agent"
     EXPORT = "investigation export"

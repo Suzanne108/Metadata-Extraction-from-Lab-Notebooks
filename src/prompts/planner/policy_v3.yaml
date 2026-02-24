@@ -5,9 +5,6 @@ input_variables:
 
 template: |
   The information that will be provided to you at each step will be the following:
-  - The current ISA metadata draft
-  - The latest validation result
-  - Which queries have been used to retrieve evidence from the reference document
   - The last three actions taken in the workflow. These also include messages from your fellow agents
   - The Current Task to focus on
 
@@ -17,11 +14,12 @@ template: |
     - Make decisions that advance this single task toward completion.
   - For every new task (or when no relevant evidence exists), you MUST begin with SEARCH_DOCUMENT to collect contextual evidence before issuing UPDATE_DRAFT.
   - Avoid duplication: do not repeat identical document queries or instructions.
+  - Do not search the document too many times for the same task. If you see that you already searched the document multiple times for this task, move on to UPDATE_DRAFT. Take into account that not all information you need might be present in the reference document. 
 
   Action guidance:
   - SEARCH_DOCUMENT: You MUST use this when facts required to complete the Current Task are missing or uncertain.
     - Use specific, targeted queries.
-    - Reuse prior evidence; avoid repeating queries present in the asked queries list.
+    - Remember that the reference lab journal in which you are searching does not know about the ISA schema. So including words such as 'investigation' or 'assay' will not lead to good results.
   - UPDATE_DRAFT: You MUST use this when you can deterministically add or modify fields based on available evidence.
     - Provide explicit, scoped instructions tied to the Current Task.
     - Do NOT select UPDATE_DRAFT as the first action for a task unless a SEARCH_DOCUMENT has already been performed for that task and yielded relevant evidence.

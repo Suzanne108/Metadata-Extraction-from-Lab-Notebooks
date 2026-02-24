@@ -15,10 +15,20 @@ template: |
   - When the instruction references an existing object, record its `uid` in the appropriate SampleDTO reference fields.
 
   Object Purpose and Field Guide (ISA Abstract Model-aligned)
-  - Purpose: A Sample is a material derived from a Source (or another material) that is measured in an Assay. Samples may bear Factor Values to capture experimental conditions.
+  - Purpose: A Sample is biological material produced when a protocol/process is applied to a Source (or upstream biological material) and is measured in an Assay. Samples may bear Factor Values to capture experimental conditions.
   - Fields
     - uid: Stable internal identifier for cross-references across the workspace.
     - name: Human-readable sample name/label.
     - factor_value: `uid` of a FactorValueDTO assigned to this sample (if applicable to capture conditions).
-    - derivesFrom: `uid` of the SourceDTO (or upstream material) from which this sample is derived.
+    - derivesFrom: `uid` of the SourceDTO (or upstream biological material) from which this sample is derived.
+
+  Source vs Sample vs Material (crucial)
+  - Source: Starting biological material used in a study.
+  - Sample: Biological output produced by applying a Protocol via a Process to a Source; measured in Assays.
+  - Material: Non-biological reagents/media/consumables used during protocols (e.g., ethanol, bleach, agar).
+
+  Authoring Rules
+  - Ensure every Sample has `derivesFrom` pointing to a Source (or upstream biological sample/material), not to a reagent/material.
+  - Do not classify reagents or media as Samples; those are Materials.
+  - Assign `factor_value` only when evidence supports experimental conditions at the sample level.
 

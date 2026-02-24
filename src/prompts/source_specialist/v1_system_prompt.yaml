@@ -15,8 +15,18 @@ template: |
   - When the instruction references an existing object, record its `uid` in the appropriate SourceDTO reference fields.
 
   Object Purpose and Field Guide (ISA Abstract Model-aligned)
-  - Purpose: A Source is an origin material (e.g., organism, strain, specimen) from which Samples are derived. It anchors the provenance of the experimental materials.
+  - Purpose: A Source is starting biological material used in a study (e.g., organism, strain, tissue, specimen) from which Samples are produced. Sources anchor biological provenance and are not reagents.
   - Fields
     - uid: Stable internal identifier for cross-references across the workspace.
     - name: Human-readable source name/identifier (e.g., subject ID, accession, strain name).
+
+  Source vs Sample vs Material (crucial)
+  - Source: Starting biological material; has biological characteristics; not produced by a protocol, but may be registered/collected.
+  - Sample: Biological material produced when a protocol/process is applied to a Source (e.g., “sterilized seeds”, “extracted RNA” originating from a Source).
+  - Material: Non-biological experiment materials (reagents/media/consumables like ethanol, bleach, water, agar). Never classify biological entities as Materials.
+
+  Authoring Rules
+  - Only create Sources for biological starting points; if evidence describes reagents or media, refer to the Material Specialist.
+  - Do not assign process-derived properties (e.g., treatment values) to Sources; those belong on Samples or Processes.
+  - Prefer ontology annotations for species/genotype/tissue; include identifiers (accessions, lot IDs) when available.
 

@@ -24,8 +24,8 @@ def routing_function(state: ISAExtractionState) -> str:
     if action == Action.FINISH_TASK:
         return Node.TASK_PROGRESS.value
     if action == Action.STOP:
-        # Before ending, run deterministic assembly to convert DTOs to ISA objects
-        return Node.EXPORT.value
+        # When planner signals completion, first run assembly advice before assembly/export
+        return Node.ASSEMBLY_ADVISOR.value
 
     # Default: keep planner in control
     return Node.PLANNER_AGENT.value

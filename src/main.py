@@ -13,9 +13,9 @@ if __name__ == "__main__":
 
     #document_path = Path.cwd() / "papers" / "Image-based_methods_for_phenotyping_growth_dynamics_and_fitness_components_in_arabidopsis_thaliana.pdf "
 
-    #document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf"
+    document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf"
 
-    document_path = Path.cwd() / "papers" / "lab_journals" / "Dryzotron_protocol_testing.pdf"
+    #document_path = Path.cwd() / "papers" / "lab_journals" / "Dryzotron_protocol_testing.pdf"
 
     #visualise_graph(create_stateful_graph_workflow(document_path))
 

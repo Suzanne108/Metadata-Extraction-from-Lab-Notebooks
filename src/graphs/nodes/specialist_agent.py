@@ -27,6 +27,7 @@ def create_specialist_agent(
     """
 
     def _dump_registry(reg: dict) -> str:
+        """Helper to convert registry of ISA objects to JSON string for prompt context. Handles non-serializable objects."""
         def _to_dict(obj: Any) -> dict:
             try:
                 return obj.model_dump()

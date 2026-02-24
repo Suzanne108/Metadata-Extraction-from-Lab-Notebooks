@@ -54,16 +54,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
 
         # Deterministic pre-checks (guardrails) before calling the LLM
         last_action = (state.get("last_action") or "").upper()
-        #validation_ok = bool((state.get("validation_result") or {}).get("valid") is True)
-        #consecutive_failures = int(state.get("consecutive_validation_failures") or 0)
         tasks_done = _all_tasks_completed(state)
-
-        vr = state.get("validation_result") or {}
-        vr = json.dumps(vr, indent=2)
-        draft = state.get("draft_isa_metadata") or {}
-        draft = json.dumps(draft, indent=2)
-        evidence = list(state.get("evidence").keys()) or []
-        evidence = json.dumps(evidence, indent=2)
 
         # 0) If all tasks are completed → STOP (END)
         if tasks_done:
@@ -112,9 +103,6 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         prompt = render_prompt(
             prompt_template,
             {
-                "draft": draft,
-                #"validation_result": vr,
-                "evidence": evidence,
                 "previous_messages": previous_messages,
                 "current_task": current_task_str,
             },

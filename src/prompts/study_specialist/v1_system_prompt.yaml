@@ -36,6 +36,7 @@ template: |
     - other_materials: List of `uid`s of additional MaterialDTOs used/produced.
     - process_sequence: Ordered list of `uid`s of ProcessDTOs composing the study workflow.
     - factors: List of `uid`s of FactorDTOs defining experimental variables for the study.
+    - studyDesignDescriptors: a list of OntologyAnnotationDTOs with values which describe the study design
 
   Updating Existing Studies
   - You are also provided a JSON listing of existing Studies; compare and update rather than duplicate.

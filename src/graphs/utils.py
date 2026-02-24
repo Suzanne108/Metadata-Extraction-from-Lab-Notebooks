@@ -368,13 +368,36 @@ def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_
             return out
 
         def _serialize_model(obj: Any) -> Any:
-            try:
-                return obj.model_dump()
-            except Exception:
+            """Best-effort conversion of registry objects to JSON-safe structures.
+
+            - For Pydantic models, prefer JSON mode to normalize nested fields
+              (e.g. datetimes) into natively serializable types.
+            - For already JSON-native types, return as-is.
+            - Fallback to string representation for anything else.
+            """
+
+            # Pydantic models (DTOs)
+            if isinstance(obj, BaseModel):
+                # Pydantic v2: use mode="json" for JSON-safe dump
                 try:
-                    return obj.dict()
+                    return obj.model_dump(mode="json")  # type: ignore[call-arg]
+                except TypeError:
+                    # Pydantic v1 compatibility
+                    try:
+                        return obj.dict()
+                    except Exception:
+                        return str(obj)
                 except Exception:
                     return str(obj)
+
+            # JSON-native primitives
+            if isinstance(obj, (str, int, float, bool)) or obj is None:
+                return obj
+            if isinstance(obj, (list, dict)):
+                return obj
+
+            # Fallback: string representation
+            return str(obj)
 
         def _registry_snapshot_text(state_like: dict) -> str:
             registry_keys = set(_DTO_REGISTRY_KEY_BY_CLASS.values())
@@ -386,7 +409,11 @@ def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_
             if not snapshot:
                 return "   Registries snapshot: (empty)\n"
             try:
-                return "   Registries snapshot:\n" + json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n"
+                return (
+                    "   Registries snapshot:\n"
+                    + json.dumps(snapshot, ensure_ascii=False, indent=2, default=str)
+                    + "\n"
+                )
             except Exception:
                 return "   Registries snapshot: (unserializable)\n"
 

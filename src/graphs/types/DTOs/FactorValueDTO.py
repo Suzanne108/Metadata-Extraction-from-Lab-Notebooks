@@ -9,10 +9,14 @@ class FactorValueDTO(BaseModel):
     uid: str = Field(default=None, description="Stable identifier for reuse/reference")
     category_name: str = Field(description="Factor category name by id")
     value_text: str = Field(description="Factor value as text")
-    unit_text: OntologyAnnotationDTO 
+    unit_text: OntologyAnnotationDTO | None
 
     def to_isatools_model(self) -> FactorValue:
-        return FactorValue(
+        factor_value = FactorValue(
+            factor_name=self.category_name,
             value=self.value_text,
-            unit=self.unit_text.to_isatools_model() if self.unit_text else None,
+            unit= self.unit_text.to_isatools_model() if isinstance(self.unit_text, OntologyAnnotationDTO) else None
         )
+
+
+        return factor_value

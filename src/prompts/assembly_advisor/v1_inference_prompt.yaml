@@ -1,0 +1,36 @@
+name: assembly_advisor
+version: v1-inference
+
+input_variables:
+  - document_text
+  - investigation
+  - studies
+  - assays
+  - datafiles
+  - processes
+  - protocols
+  - factors
+  - factor_values
+  - sources
+  - samples
+  - materials
+
+template: |
+  Document (full text):
+  {document_text}
+
+  Created objects (JSON by uid or single DTO):
+  Investigation: {investigation}
+  Studies: {studies}
+  Assays: {assays}
+  Processes: {processes}
+  Protocols: {protocols}
+  Factors: {factors}
+  FactorValues: {factor_values}
+  Sources: {sources}
+  Samples: {samples}
+  Materials: {materials}
+  DataFiles: {datafiles}
+
+  Task:
+  Provide a deterministic, step-by-step assembly advice describing how to link these objects into a valid ISA graph. Reference objects by `uid`. Specify process input/output chaining, assay composition (samples/materials/datafiles), and study grouping. Note any gaps and propose minimal, document-grounded resolutions.

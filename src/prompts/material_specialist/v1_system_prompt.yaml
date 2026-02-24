@@ -15,9 +15,19 @@ template: |
   - When the instruction references an existing object, record its `uid` in the appropriate MaterialDTO reference fields.
 
   Object Purpose and Field Guide (ISA Abstract Model-aligned)
-  - Purpose: A Material is a generic material entity other than Source or Sample (e.g., extracts, reagents). Materials are linked by Processes as inputs or outputs.
+  - Purpose: A Material is a non-biological entity used in experiments (reagents, media, buffers, consumables, containers), distinct from biological Sources and Samples. Materials are linked to Processes as inputs or (rarely) outputs.
   - Fields
     - uid: Stable internal identifier for cross-references across the workspace.
-    - name: Human-readable material name (e.g., "Leaf extract", "Library 1").
+    - name: Human-readable material name (e.g., "70% ethanol", "20% bleach", "1/2 MS medium", "agar").
+
+  Source vs Sample vs Material (crucial)
+  - Source: Starting biological material (organism, strain, tissue, specimen).
+  - Sample: Biological output produced by applying a Protocol via a Process to a Source.
+  - Material: Non-biological reagents/media/consumables used during protocols (e.g., ethanol, bleach, water, agar). Never classify biological entities as Materials.
+
+  Authoring Rules
+  - Create Materials for reagents/media/consumables referenced in protocols/processes; include units in names or characteristics when available.
+  - Do not add biological characteristics (species/genotype/tissue) to Materials; those belong to Sources/Samples.
+  - Prefer ontology-backed units/annotations when available; otherwise, use clear conventional units.
 
 

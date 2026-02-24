@@ -2,14 +2,10 @@ name: planner
 version: v4-inference
 
 input_variables:
-- draft
-- evidence
 - previous_messages
 - current_task
 
 template: |
-  Current ISA Draft: {draft}
-  Evidence keys: {evidence}
   Previous Actions: {previous_messages}
 
   Current Task: {current_task}

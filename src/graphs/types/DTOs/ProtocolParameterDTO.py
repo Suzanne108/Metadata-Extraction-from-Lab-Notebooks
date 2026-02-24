@@ -8,7 +8,7 @@ from src.graphs.types.DTOs.OntologyAnnotationDTO import OntologyAnnotationDTO
 
 class ProtocolParameterDTO(BaseModel):
     uid: str = Field(default=None, description="Stable identifier for reuse/reference")
-    parameter_name: Optional[OntologyAnnotationDTO] 
+    parameter_name: OntologyAnnotationDTO
 
     def to_isatools_model(self) -> ProtocolParameter:
         # Guard against invalid defaults (e.g., FieldInfo) and None
