@@ -112,6 +112,55 @@ def create_investigation_export_node() -> callable:
                 _safe_set(first_study, "process_sequence", process_list)
                 _safe_set(first_study, "factors", factor_list)
 
+                # ------------------------------------------------------------------
+                # Collect characteristic and unit categories
+                #
+                # Characteristics on sources/samples/materials are currently created
+                # via MaterialAttributeValueDTO, which sets:
+                #   - category -> an ontology-like object
+                #   - unit     -> an ontology-like object (optional)
+                #
+                # ISAJSONEncoder expects these category/unit "vocabularies" to be
+                # attached to the study (characteristic_categories, unit_categories).
+                # If they are missing, the exported ISA-JSON only contains bare
+                # "@id" references without any annotationValue. Here we collect all
+                # unique category and unit objects from the attached materials and
+                # register them on the first study so they are fully serialised.
+                # ------------------------------------------------------------------
+                try:
+                    characteristic_categories = []
+                    unit_categories = []
+
+                    def _add_unique(target_list: list, obj: Any):
+                        if obj is None:
+                            return
+                        # Identity-based de-duplication is sufficient here
+                        if obj not in target_list:
+                            target_list.append(obj)
+
+                    def _collect_from_objects(objs: list[object]):
+                        for o in objs or []:
+                            chars = getattr(o, "characteristics", None) or []
+                            for ch in chars:
+                                cat = getattr(ch, "category", None)
+                                _add_unique(characteristic_categories, cat)
+
+                                unit = getattr(ch, "unit", None)
+                                _add_unique(unit_categories, unit)
+
+                    _collect_from_objects(source_list)
+                    _collect_from_objects(sample_list)
+                    _collect_from_objects(material_list)
+
+                    if characteristic_categories and hasattr(first_study, "characteristic_categories"):
+                        _safe_set(first_study, "characteristic_categories", characteristic_categories)
+
+                    if unit_categories and hasattr(first_study, "unit_categories"):
+                        _safe_set(first_study, "unit_categories", unit_categories)
+
+                except Exception as e:
+                    _log_exception("collecting characteristic/unit categories for study", e)
+
             # Set data files only on the FIRST assay
             first_assay = assay_list[0] if assay_list else None
             if first_assay:

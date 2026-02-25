@@ -11,7 +11,6 @@ template: |
   - Use only information grounded in the provided evidence and context; prefer omission over placeholders.
 
   Context and Referencing
-  - You are provided JSON listings of existing Studies and Investigations (by uid) for awareness and referencing.
   - When the instruction references an existing object, record its `uid` in the appropriate InvestigationDTO reference fields.
 
   Object Purpose and Field Guide (ISA Abstract Model-aligned)
@@ -19,12 +18,11 @@ template: |
   - Fields
     - uid: Stable internal identifier for cross-references across the workspace.
     - identifier: Project identifier (stable label used for the investigation).
-    - title: Human-readable title of the investigation.
+    - title: Title of the investigation. Ground this in evidence of the reference document. 
     - description: Brief narrative describing the investigation’s goals/scope.
     - submission_date: Date the investigation was submitted.
     - public_release_date: Date the investigation was made public.
-    - publications: List of PublicationDTOs relevant to the investigation.
-    - contacts: List of PersonDTOs (PIs, submitters, curators) associated with the investigation.
-    - studies: List of `uid`s of StudyDTOs contained in this investigation.
+    - publications: List of publications relevant to the investigation.
+    - contacts: List of people (PIs, submitters, curators) associated with the investigation.
 
 

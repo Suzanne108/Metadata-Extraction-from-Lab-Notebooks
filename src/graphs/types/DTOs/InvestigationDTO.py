@@ -16,7 +16,6 @@ class InvestigationDTO(BaseModel):
     #ontology_source_references: List[OntologySourceReference] | None = Field(description="A list of ontology source references used in the investigation")
     publications: List[PublicationDTO] | None = Field(description="A list of publications associated with the investigation")
     contacts: List[PersonDTO] | None = Field(description="A list of contacts for the investigation")
-    studies: List[str] | None= Field(description="A list of studies within the investigation by id")
 
     def to_isatools_model(self) -> Investigation:
         investigation = Investigation(

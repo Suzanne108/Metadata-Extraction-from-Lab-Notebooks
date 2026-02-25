@@ -5,7 +5,6 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import RunnableConfig
 
-from src.graphs.nodes.ISA_updater import create_ISA_updater
 from src.graphs.nodes.isa_overview import create_isa_overview
 from src.graphs.nodes.document_overview import create_document_overview
 from src.graphs.nodes.task_decomposer import create_task_decomposer
@@ -92,13 +91,6 @@ def build_task_decomposer_node(registry: PromptRegistry):
     task_decomp_infer = registry.get_prompt("task_decomposer", "v1-inference")
     model_task_decomposer = get_chat_model().with_structured_output(TaskList)
     return create_task_decomposer(model_task_decomposer, task_decomp_system, task_decomp_infer)
-
-def build_isa_updater_node(registry: PromptRegistry, schema_getter_tools):
-    """Create ISA updater node bound with schema tools."""
-    model_updater = get_chat_model().bind_tools(schema_getter_tools)
-    updater_system_prompt = render_prompt(registry.get_prompt("ISA_updater", "v3-system"), {})
-    updater_inference_prompt_template = registry.get_prompt("ISA_updater", "v2-inference")
-    return create_ISA_updater(model_updater, schema_getter_tools, updater_system_prompt, updater_inference_prompt_template)
 
 
 def build_team_lead_node(registry: PromptRegistry):

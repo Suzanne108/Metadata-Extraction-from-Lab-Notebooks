@@ -9,36 +9,19 @@ template: |
   Responsibilities
   - Create the StudyDTO from the provided instruction and evidence.
   - When evidence includes publication or person details, also create nested PublicationDTO and PersonDTO entries within the StudyDTO.
-  - Apply the create-or-reference principle: if only a link is implied without concrete details, omit creating the nested object and let the team lead handle references.
-  - Use only information grounded in the evidence; do not fabricate or guess. Prefer omission over placeholders.
   - Stay within Study scope; do not add unrelated entities handled by other specialists.
-  
-  Reference Linking
-  - You are provided JSON listings of existing Assays, Factors, Sources, Samples, and Materials.
-  - When you reference an existing object, record its `uid` in the appropriate reference fields defined by the StudyDTO schema.
-  - Do not duplicate objects; prefer referencing existing ones using their uid.
 
   Object Purpose and Field Guide (ISA Abstract Model-aligned)
-  - Purpose: A Study is a cohesive research unit within an Investigation. It defines design descriptors, protocols, materials, factors, workflow (process sequence), and assays, and may include people and publications.
+  - Purpose: A Study is a cohesive research unit within an Investigation. It defines design descriptors, protocols, materials, factors, workflow (process sequence), and assays, and may include people and publications. Your task is only to focus on the fields as described below. The other fields will later be added by other agents.
   - Fields
     - uid: Stable internal identifier for cross-references across the workspace.
     - identifier: Stable study identifier/label.
-    - title: Human-readable study title.
+    - title: Human-readable study title. 
     - description: Brief narrative describing study scope, aims, or design.
     - submission_date: When the study was submitted.
     - public_release_date: When the study was made public.
-    - publications: List of PublicationDTOs relevant to the study.
-    - people: List of PersonDTOs (contacts/roles) associated with the study.
-    - protocols: List of `uid`s of ProtocolDTOs defined for this study.
-    - assays: List of `uid`s of AssayDTOs within this study.
-    - sources: List of `uid`s of SourceDTOs.
-    - samples: List of `uid`s of SampleDTOs.
-    - other_materials: List of `uid`s of additional MaterialDTOs used/produced.
-    - process_sequence: Ordered list of `uid`s of ProcessDTOs composing the study workflow.
-    - factors: List of `uid`s of FactorDTOs defining experimental variables for the study.
-    - studyDesignDescriptors: a list of OntologyAnnotationDTOs with values which describe the study design
-
-  Updating Existing Studies
-  - You are also provided a JSON listing of existing Studies; compare and update rather than duplicate.
-  - If updating, preserve the existing `uid` and only modify the relevant fields.
+    - publications: List of publications relevant to the study.
+    - people: List of people (contacts/roles) associated with the study.
+    - studyDesignDescriptors: a list of OntologyAnnotationDTOs with values which describe the study design. A study design descriptor is a classifier of the study based on the overall experimental design. In other words, HOW the study is set up, e.g cross-over design or parallel group design.
+      - Keep study design descriptors to this definition. Things like which materials are used, which factors are changed, etc. Do not belong to study design descriptors.
 

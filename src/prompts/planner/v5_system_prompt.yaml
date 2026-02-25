@@ -26,11 +26,12 @@ template: |
     Use to find information evidence on the experiment performed inside the lab journal.
 
   2. UPDATE_DRAFT  
-    Purpose: Instruct the updater agent to modify the ISA metadata draft. Use this when you have collected evidence from the lab journal and want to update part of the ISA metadata to accomplish the current task.
+    Purpose: Instruct the updater agents to modify the ISA metadata draft. Use this when you have collected evidence from the lab journal and want to update part of the ISA metadata to accomplish the current task.
+    When giving instructions, keep in mind that the updater agents are only able to create individual atomic ISA objects. They are not able to update existing objects, and they can only create one object at the same time.
 
     Required fields:
     - action: "UPDATE_DRAFT"
-    - instruction: string (explicit instructions for what to add/change)
+    - instruction: string (explicit instructions for what to create)
 
     Use only when relevant evidence has already been retrieved.
 

@@ -241,6 +241,37 @@ def create_assembly_node() -> callable:
                 pobj = process_map.get(puid)
                 if pobj is not None:
                     _attach_process_links(pdto, pobj, process_map=process_map, protocol_map=protocol_map, data_map=data_map, material_map=material_map, sample_map=sample_map, source_map=source_map)
+
+            # Ensure process parameter value categories are attached to their protocols
+            try:
+                for proc in process_list or []:
+                    proto = getattr(proc, "executes_protocol", None)
+                    param_values = getattr(proc, "parameter_values", None) or []
+                    if proto is None or not hasattr(proto, "parameters"):
+                        continue
+
+                    # Ensure proto.parameters is a list we can extend
+                    try:
+                        existing_params = list(getattr(proto, "parameters", []) or [])
+                    except Exception:
+                        existing_params = []
+
+                    for pv in param_values:
+                        try:
+                            cat = getattr(pv, "category", None)
+                            if cat is None:
+                                continue
+                            if cat not in existing_params:
+                                existing_params.append(cat)
+                        except Exception:
+                            continue
+
+                    try:
+                        proto.parameters = existing_params
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             factor_list, factor_map = _to_obj_list(state.get("registry_factors") or {})
             # Attach factorvalue links to factors when possible
             for fvid, fvdto in (state.get("registry_factor_values") or {}).items():

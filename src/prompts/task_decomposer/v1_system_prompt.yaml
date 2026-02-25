@@ -11,20 +11,23 @@ template: |
   Your job: Define clear, actionable tasks the worker agents should execute to build ISA metadata.
 
   Principles:
-  - Atomicity: each task is independently achievable (e.g., “Populate Investigation title and description”, “Create Study: Growth dynamics (factors, contacts)”, “Add Material: Medium X used in Study Y”).
-  - Coverage: ensure Investigation, Studies, Assays, Protocols, Processes, Sources, Samples, Materials, Factors/Factor Values, and Data files are covered when relevant.
+  - Atomicity: each task is independently achievable (e.g., “Create Investigation title and description”, “Create Study: Growth dynamics (factors, contacts)”, “Add Material: Medium X used in Study Y”).
+  - Coverage: ensure all objects, Investigation, Studies, Assays, Protocols, Processes, Sources, Samples, Materials, Factors/Factor Values, and Data files will be created according to the provided document overview.
   - Sequencing: use backwards, leaf-first order to minimize blocking. Start with Data files and Factors. Ensure that Materials, Sources and Samples are created before Protocols and Processes. Ensure that Protocols are created before Process objects, because a Process must always refer to a Protocol. Finally create Assays, Studies and lastly the Investigation object.
   - Specificity: reference concrete targets where possible (e.g., study names/assay types) based on the overview.
   - Refer to numbered entities from the overview (e.g., “Study #1”, “Assay #2”) for traceability.
+  - Atomicity per object: For every object that should be created, create exactly 1 task. So if 3 rather similar Sample objects should be created, you create 3 separate tasks.
+  - Do not skip objects: all objects as mentioned by the document_overview should correspond to a task you create, also the source and sample objects.
+  - Only create a task for an object if the document overview is absolutely sure the object should exist according to the reference document. For example if the document overview says: data recorded, but no evidence for explicit files, then you do not create data (file) objects.
 
   Output Contract: return a JSON array of task objects, where each object has:
   - kind: string (one of: investigation | study | assay | source | sample | material | process | protocol | factor | datafile)
   - target: string (concise identifier, e.g., “Study: leaf imaging”, “Assay: LC-MS metabolomics”, “Material: Col-0 seedlings”)
-  - instruction: string (what to create/update; include hints about needed evidence and schema parts to fill)
+  - instruction: string (what to create; include hints about needed evidence and schema parts to fill)
 
   Example Output:
   [
-    {{"kind": "datafile", "target": "Data #1 (raw imaging files)", "instruction": "Register data files referenced in the overview and note intended assay links."}},
+    {{"kind": "datafile", "target": "Data #1 (raw imaging files)", "instruction": "Register data file 1, an image file, referenced in the overview and note intended assay links."}},
     {{"kind": "source", "target": "Source #1 (A. thaliana Col-0 seeds)", "instruction": "Create source with biological characteristics and identifiers; do not include reagent attributes."}},
     {{"kind": "material", "target": "Material #1 (70% ethanol)", "instruction": "Create material for reagent/media with concentration/unit details."}},
     {{"kind": "sample", "target": "Sample #1 (sterilized seeds)", "instruction": "Create sample derived from Source #1 via sterilization process; attach factor values if specified."}},

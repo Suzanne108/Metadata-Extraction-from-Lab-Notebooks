@@ -17,13 +17,6 @@ class StudyDTO(BaseModel):
     public_release_date: str = Field(description="The date the study was made publicly available")
     publications: List[PublicationDTO] | None = Field(description="A list of publications associated with the study")
     people: List[PersonDTO] | None = Field(description="A list of contacts for the study")
-    protocols: List[str] | None = Field(description="A list of protocols in the study")
-    assays: List[str] | None = Field(description="A list of assays in the study")
-    sources: List[str] | None = Field(description="A list of sources in the study")
-    samples: List[str] | None = Field(description="A list of samples in the study")
-    other_materials: List[str] | None = Field(description="A list of other materials in the study")
-    process_sequence: List[str] | None = Field(description="The process sequence of the study")
-    factors: List[str] | None = Field(description="Experimental factors in the study")
     studyDesignDescriptors: List[OntologyAnnotationDTO] | None = Field(description="Study design descriptors for the study")
 
     def to_isatools_model(self) -> Study:

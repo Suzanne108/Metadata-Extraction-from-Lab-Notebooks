@@ -46,16 +46,8 @@ def create_specialist_agent(
     SPECIALIST_CONTEXT_BY_DTO_KEY: dict[str, dict[str, str]] = {
         # Higher-level should know potential lower-level references
         "dto_investigation": {
-            "existing_investigations": "registry_investigations",
-            "existing_studies": "registry_studies",
         },
         "dto_study": {
-            "existing_studies": "registry_studies",
-            "existing_assays": "registry_assays",
-            "existing_factors": "registry_factors",
-            "existing_sources": "registry_sources",
-            "existing_samples": "registry_samples",
-            "existing_materials": "registry_materials",
         },
         "dto_assay": {
             "existing_assays": "registry_assays",
@@ -78,16 +70,10 @@ def create_specialist_agent(
             "existing_factors": "registry_factors",
         },
         "dto_source": {
-            "existing_sources": "registry_sources",
-            "existing_materials": "registry_materials",
         },
         "dto_sample": {
-            "existing_samples": "registry_samples",
-            "existing_sources": "registry_sources",
-            "existing_materials": "registry_materials",
         },
         "dto_material": {
-            "existing_materials": "registry_materials",
         },
         "dto_data": {
             "existing_datafiles": "registry_data",

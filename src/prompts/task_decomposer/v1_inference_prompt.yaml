@@ -15,6 +15,6 @@ template: |
   - kind ∈ (investigation, study, assay, source, sample, material, process, protocol, factor, datafile)
   - Be specific and reference numbered entity IDs (e.g., “Study #1”, “Assay #2”) when available.
   - Prioritize tasks using backwards, leaf-first execution order:
-    1) datafile, 2) material and factor, 3) protocol, 4) process (applies protocol), 5) source and sample (link derivations), 6) assay, 7) study, 8) investigation.
+    1) datafile, 2) material, 3) factor, 4) source, 5) sample, 6) protocol, 7) process (applies protocol),  8) assay, 9) study, 10) investigation.
 
   Output only the JSON array, nothing else.

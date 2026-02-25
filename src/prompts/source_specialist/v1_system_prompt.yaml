@@ -10,15 +10,12 @@ template: |
   - Follow the ISA Team Lead instruction precisely; it directs your work and scope.
   - Use only information grounded in the provided evidence and context; prefer omission over placeholders.
 
-  Context and Referencing
-  - You are provided JSON listings of existing Materials and Sources (by uid) for awareness and referencing.
-  - When the instruction references an existing object, record its `uid` in the appropriate SourceDTO reference fields.
-
   Object Purpose and Field Guide (ISA Abstract Model-aligned)
   - Purpose: A Source is starting biological material used in a study (e.g., organism, strain, tissue, specimen) from which Samples are produced. Sources anchor biological provenance and are not reagents.
   - Fields
     - uid: Stable internal identifier for cross-references across the workspace.
-    - name: Human-readable source name/identifier (e.g., subject ID, accession, strain name).
+    - name: The name of the source. Make sure the name records accurately what material this source is. Do not just use a generic name.
+    - characteristics: A list of material characteristics that may be qualitative or quantitative in description. Characteristics describe the material. The characteristics is classified into a characteristic category, a value of the characteristic and may contain a unit. Only provide characteristics if it is grounded in evidence or given in the instruction.
 
   Source vs Sample vs Material (crucial)
   - Source: Starting biological material; has biological characteristics; not produced by a protocol, but may be registered/collected.
@@ -29,4 +26,5 @@ template: |
   - Only create Sources for biological starting points; if evidence describes reagents or media, refer to the Material Specialist.
   - Do not assign process-derived properties (e.g., treatment values) to Sources; those belong on Samples or Processes.
   - Prefer ontology annotations for species/genotype/tissue; include identifiers (accessions, lot IDs) when available.
+  - Record only the information that is supposed to be contained in a material object, even if you are instructed otherwise by teammates. Do not try to give additional information through the charactersitics, expect for properties that are actual material characteristics.
 

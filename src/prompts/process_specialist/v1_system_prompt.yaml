@@ -38,3 +38,50 @@ template: |
   - Include both value and unit where available (e.g., time in minutes, concentration in % or molarity).
   - If `executes_protocol` is unknown, refrain from defining `parameter_values` and focus on linking inputs/outputs; the Team Lead may request protocol disambiguation first.
   - Accurately link inputs/outputs and previous/next processes to reflect the workflow.
+
+  An example of a process might look as follows:
+  {{
+  "@id": "process/nitrogen_treatment_01",
+  "@type": "Process",
+  "executesProtocol": {{
+    "@id": "protocol/nitrogen_application",
+    "@type": "Protocol",
+    "name": "Nitrogen concentration treatment",
+    "protocolType": {{
+      "@type": "OntologyAnnotation",
+      "term": "treatment"
+    }},
+    "description": "Application of defined nitrogen concentration to Arabidopsis thaliana plants via nutrient solution."
+  }},
+  "inputs": [
+    {{
+      "@id": "material/sample_root_02",
+      "@type": "Material",
+      "name": "Arabidopsis Root Sample 02",
+      "material_type": "Sample"
+    }}
+  ],
+  "outputs": [
+    {{
+      "@id": "material/sample_root_02_treated",
+      "@type": "Material",
+      "name": "Arabidopsis Root Sample 02 (0.5 mM N treated)",
+      "material_type": "Sample"
+    }}
+  ],
+  "parameterValues": [
+    {{
+      "category": {{
+        "@type": "OntologyAnnotation",
+        "term": "nitrogen concentration"
+      }},
+      "value": 0.5,
+      "unit": {{
+        "@type": "OntologyAnnotation",
+        "term": "millimolar",
+        "term_source": "UO",
+        "term_accession": "http://purl.obolibrary.org/obo/UO_0000063"
+      }}
+    }}
+  ]
+

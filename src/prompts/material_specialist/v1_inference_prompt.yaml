@@ -4,9 +4,7 @@ version: v1-inference
 input_variables:
   - instruction
   - latest_evidence
-  - existing_materials
 
 template: |
   Instruction: {instruction}
   Latest evidence: {latest_evidence}
-  Existing materials (by uid): {existing_materials}

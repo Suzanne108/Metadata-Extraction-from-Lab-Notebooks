@@ -33,4 +33,4 @@ template: |
   DataFiles: {datafiles}
 
   Task:
-  Provide a deterministic, step-by-step assembly advice describing how to link these objects into a valid ISA graph. Reference objects by `uid`. Specify process input/output chaining, assay composition (samples/materials/datafiles), and study grouping. Note any gaps and propose minimal, document-grounded resolutions.
+  Provide a deterministic, step-by-step assembly advice describing how to link these objects into a valid ISA graph. Reference objects by `uid`. Specify process input/output chaining, assay composition (samples/materials/datafiles), and study grouping. 

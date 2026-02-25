@@ -10,24 +10,77 @@ template: |
   - Follow the ISA Team Lead instruction precisely; it directs your work and scope.
   - Use only information grounded in the provided evidence and context; prefer omission over placeholders.
 
-  Context and Referencing
-  - You are provided a JSON listing of existing Materials (by uid) for awareness and referencing.
-  - When the instruction references an existing object, record its `uid` in the appropriate MaterialDTO reference fields.
-
   Object Purpose and Field Guide (ISA Abstract Model-aligned)
   - Purpose: A Material is a non-biological entity used in experiments (reagents, media, buffers, consumables, containers), distinct from biological Sources and Samples. Materials are linked to Processes as inputs or (rarely) outputs.
   - Fields
     - uid: Stable internal identifier for cross-references across the workspace.
     - name: Human-readable material name (e.g., "70% ethanol", "20% bleach", "1/2 MS medium", "agar").
-
-  Source vs Sample vs Material (crucial)
-  - Source: Starting biological material (organism, strain, tissue, specimen).
-  - Sample: Biological output produced by applying a Protocol via a Process to a Source.
-  - Material: Non-biological reagents/media/consumables used during protocols (e.g., ethanol, bleach, water, agar). Never classify biological entities as Materials.
+    - characteristics: A list of material characteristics that may be qualitative or quantitative in description. Characteristics describe the material. The characteristics is classified into a characteristic category, a value of the characteristic and may contain a unit. Only provide characteristics if it is grounded in evidence or given in the instruction.
 
   Authoring Rules
-  - Create Materials for reagents/media/consumables referenced in protocols/processes; include units in names or characteristics when available.
+  - Create Materials for reagents/media/consumables referenced in protocols/processes; include characteristics only when given.
   - Do not add biological characteristics (species/genotype/tissue) to Materials; those belong to Sources/Samples.
-  - Prefer ontology-backed units/annotations when available; otherwise, use clear conventional units.
+  - Record only the information that is supposed to be contained in a material object, even if you are instructed otherwise by teammates. Do not try to give additional information through the charactersitics, expect for properties that are actual material characteristics.
+
+  An example of a Material object describing a Hoagland nitrate solution with 15mM nitrate and ph 6.0 would be:
+
+  {{
+  "@id": "material/hoagland_nitrate_15mM",
+  "@type": "Material",
+  "name": "Hoagland Nitrate Solution 15 mM",
+  "material_type": "Extract Name",
+  "description": "Modified Hoagland nutrient solution containing 15 millimolar nitrate as the primary nitrogen source.",
+  "characteristics": [
+    {{
+      "category": {{
+        "@type": "OntologyAnnotation",
+        "term": "Material type"
+      }},
+      "value": {{
+        "@type": "OntologyAnnotation",
+        "term": "nutrient solution",
+        "term_source": "CHEBI",
+        "term_accession": "http://purl.obolibrary.org/obo/CHEBI_76413"
+      }}
+    }},
+    {{
+      "category": {{
+        "@type": "OntologyAnnotation",
+        "term": "Chemical component"
+      }},
+      "value": {{
+        "@type": "OntologyAnnotation",
+        "term": "nitrate",
+        "term_source": "CHEBI",
+        "term_accession": "http://purl.obolibrary.org/obo/CHEBI_17632"
+      }}
+    }},
+    {{
+      "category": {{
+        "@type": "OntologyAnnotation",
+        "term": "Concentration"
+      }},
+      "value": 15,
+      "unit": {{
+        "@type": "OntologyAnnotation",
+        "term": "millimolar",
+        "term_source": "UO",
+        "term_accession": "http://purl.obolibrary.org/obo/UO_0000063"
+      }}
+    }},
+    {{
+      "category": {{
+        "@type": "OntologyAnnotation",
+        "term": "pH"
+      }},
+      "value": 6.0
+    }}
+  ],
+  "comments": [
+    {{
+      "name": "Preparation protocol",
+      "value": "Prepared according to modified Hoagland formulation with nitrate adjusted to 15 mM using KNO3."
+    }}
+  ]
 
 
