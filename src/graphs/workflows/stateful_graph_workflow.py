@@ -5,7 +5,6 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import RunnableConfig
 
-from src.graphs.nodes.isa_overview import create_isa_overview
 from src.graphs.nodes.document_overview import create_document_overview
 from src.graphs.nodes.task_decomposer import create_task_decomposer
 from src.model import get_chat_model
@@ -13,7 +12,6 @@ from src.graphs.nodes.planner import create_planner
 from src.tools import create_doc_getter, create_schema_getter
 from src.graphs.utils import index_document, stream_messages, write_final_state
 from src.graphs.nodes.routing_function import routing_function, team_lead_routing
-from src.graphs.nodes.assembly import create_assembly_node
 from src.graphs.nodes.assembly_advisor import create_assembly_advisor
 from src.graphs.nodes.investigation_export import create_investigation_export_node
 from src.state import ISAExtractionState
@@ -21,7 +19,6 @@ from src.graphs.nodes.tool_callers import create_search_document_caller, validat
 from src.prompts.registry import PromptRegistry
 from src.prompts.renderer import render_prompt
 from src.graphs.nodes.task_progress import create_task_progressor
-from src.document_processing import DocumentManager
 from src.graphs.types.NextStep import NextStepLLM
 from src.graphs.types.Node import Node
 from src.task import TaskList
@@ -59,20 +56,6 @@ def build_planner_node(registry: PromptRegistry):
     planner_policy_prompt = render_prompt(registry.get_prompt("planner", "v3-policy"), {})
     return create_planner(model_planner, planner_system_prompt, planner_policy_prompt)
 
-def build_isa_overview_node(registry: PromptRegistry, schema_getter_tools):
-    """Create the ISA overview node with its prompts."""
-
-    model = get_chat_model().bind_tools(schema_getter_tools)
-    isa_overview_system = render_prompt(registry.get_prompt("ISA_overview", "v2-system"), {})
-    isa_overview_infer = registry.get_prompt("ISA_overview", "v2-inference")
-
-    doc_manager = DocumentManager()
-    path = Path.cwd() / "instructions" / "ISA_abstract_model.pdf"
-
-    isa_overview_doc = doc_manager.load_pdf(path)
-
-    return create_isa_overview(model, schema_getter_tools, isa_overview_system, isa_overview_infer, isa_overview_doc)
-
 def build_doc_overview_node(registry: PromptRegistry):
     """Create ISA overview and document overview nodes with their prompts."""
     model_llm = get_chat_model()
@@ -80,7 +63,13 @@ def build_doc_overview_node(registry: PromptRegistry):
     # Document Overview
     doc_overview_system = render_prompt(registry.get_prompt("document_overview", "v1-system"), {})
     doc_overview_infer = registry.get_prompt("document_overview", "v1-inference")
-    doc_overview_node = create_document_overview(model_llm, doc_overview_system, doc_overview_infer)
+    isa_mental_model_path = Path.cwd() / "instructions" / "isa_mental_model.txt"
+    doc_overview_node = create_document_overview(
+        model_llm,
+        doc_overview_system,
+        doc_overview_infer,
+        isa_mental_model_path,
+    )
 
     return doc_overview_node
 
@@ -231,7 +220,6 @@ def build_assembly_advisor_node(registry: PromptRegistry):
 
 
 def build_graph(
-    isa_overview_node,
     doc_overview_node,
     task_decomposer_node,
     task_progress_node,
@@ -253,7 +241,6 @@ def build_graph(
     graph = StateGraph(ISAExtractionState)
 
     # Create nodes in the order they appear in the graph
-    graph.add_node(Node.ISA_OVERVIEW.value, isa_overview_node)
     graph.add_node(Node.DOC_OVERVIEW.value, doc_overview_node)
     graph.add_node(Node.TASK_DECOMPOSER.value, task_decomposer_node)
     graph.add_node(Node.TASK_PROGRESS.value, task_progress_node)
@@ -271,14 +258,12 @@ def build_graph(
     graph.add_node(Node.MATERIAL_CREATOR.value, material_agent_node)
     graph.add_node(Node.DATAFILE_CREATOR.value, datafile_agent_node)
     #graph.add_node(Node.VALIDATE.value, validate)
-    # Advisor, deterministic assembly, then export
+    # Advisor and export (assembly node removed)
     graph.add_node(Node.ASSEMBLY_ADVISOR.value, build_assembly_advisor_node(PromptRegistry()))
-    graph.add_node(Node.ASSEMBLY.value, create_assembly_node())
     graph.add_node(Node.EXPORT.value, build_export_node())
 
-    # Linear pre-loop sequence
-    graph.add_edge(START, Node.ISA_OVERVIEW.value)
-    graph.add_edge(Node.ISA_OVERVIEW.value, Node.DOC_OVERVIEW.value)
+    # Linear pre-loop sequence (ISA overview now comes from a fixed file)
+    graph.add_edge(START, Node.DOC_OVERVIEW.value)
     graph.add_edge(Node.DOC_OVERVIEW.value, Node.TASK_DECOMPOSER.value)
     graph.add_edge(Node.TASK_DECOMPOSER.value, Node.TASK_PROGRESS.value)
     graph.add_edge(Node.TASK_PROGRESS.value, Node.PLANNER_AGENT.value)
@@ -328,9 +313,8 @@ def build_graph(
     graph.add_edge(Node.DATAFILE_CREATOR.value, Node.PLANNER_AGENT.value)
     graph.add_edge(Node.SEARCH_DOCUMENT.value, Node.PLANNER_AGENT.value)
     #graph.add_edge(Node.VALIDATE.value, Node.PLANNER_AGENT.value)
-    # After advisor, run deterministic assembly, then export, then end
-    graph.add_edge(Node.ASSEMBLY_ADVISOR.value, Node.ASSEMBLY.value)
-    graph.add_edge(Node.ASSEMBLY.value, Node.EXPORT.value)
+    # After advisor, export, then end (assembly node removed)
+    graph.add_edge(Node.ASSEMBLY_ADVISOR.value, Node.EXPORT.value)
     graph.add_edge(Node.EXPORT.value, END)
 
     # Compile with an in-memory checkpointer so state can be retrieved
@@ -345,8 +329,8 @@ def create_stateful_graph_workflow(document_path: str = None) -> StateGraph:
     # Registry
     registry = PromptRegistry()
 
-    # Nodes in order of appearance
-    isa_overview_node = build_isa_overview_node(registry, schema_getter_tools)
+    # Nodes in order of appearance (ISA overview is now precomputed and
+    # loaded from disk by the document overview node)
     doc_overview_node = build_doc_overview_node(registry)
     task_decomposer_node = build_task_decomposer_node(registry)
     planner_node = build_planner_node(registry)
@@ -365,7 +349,6 @@ def create_stateful_graph_workflow(document_path: str = None) -> StateGraph:
 
     # Build and compile graph
     app = build_graph(
-        isa_overview_node,
         doc_overview_node,
         task_decomposer_node,
         task_progress_node,

@@ -81,10 +81,43 @@ def create_specialist_agent(
         },
     }
 
+    def _format_latest_evidence(latest_evidence: Any) -> str:
+        """Convert latest_evidence list into a readable string for prompts.
+
+        Handles lists of LangChain Documents, dicts with page_content, or plain strings.
+        """
+        if not latest_evidence:
+            return "None."
+
+        # Normalize to list
+        if not isinstance(latest_evidence, list):
+            latest_evidence = [latest_evidence]
+
+        formatted_chunks = []
+        for idx, item in enumerate(latest_evidence, start=1):
+            # LangChain Document or similar object with page_content attribute
+            text = getattr(item, "page_content", None)
+            # Dict-style document
+            if text is None and isinstance(item, dict):
+                text = item.get("page_content") or item.get("content")
+            # Fallback: string representation
+            if text is None:
+                text = str(item)
+
+            text = str(text).strip()
+            if not text:
+                continue
+            formatted_chunks.append(f"{idx}. {text}")
+
+        if not formatted_chunks:
+            return "None."
+
+        return "\n".join(formatted_chunks)
+
     def specialist_agent(state: ISAExtractionState) -> dict:
         decision = state.get("team_lead_decision")
         instruction = getattr(decision, "instruction", None)
-        latest_evidence = state.get("latest_evidence") or []
+        raw_latest_evidence = state.get("latest_evidence") or []
 
         # Build context variables of relevant existing objects
         context_map = SPECIALIST_CONTEXT_BY_DTO_KEY.get(dto_state_key, {})
@@ -92,6 +125,9 @@ def create_specialist_agent(
         for var_name, reg_key in context_map.items():
             reg = state.get(reg_key) or {}
             context_vars[var_name] = _dump_registry(reg)
+
+        latest_evidence = _format_latest_evidence(raw_latest_evidence)
+        print(f"passed evidence to agent: {latest_evidence}")
 
         prompt = render_prompt(
             inference_prompt_template,
@@ -104,8 +140,6 @@ def create_specialist_agent(
 
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
         response: Any = model.invoke(messages)
-
-        print(response)
 
         # Upsert primary DTO and any nested DTOs into per-type registries (overwrite policy)
         updates = ensure_dto_uid_and_register(state, response)

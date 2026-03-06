@@ -97,6 +97,32 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         else:
             current_task_str = "None"
 
+        # Prepare latest evidence (last retrieved document chunks) for the planner
+        raw_latest_evidence = state.get("latest_evidence") or []
+        # Normalize and stringify similar to specialist agents
+        def _format_latest_evidence_for_planner(latest_evidence):
+            if not latest_evidence:
+                return "None."
+            if not isinstance(latest_evidence, list):
+                latest_evidence = [latest_evidence]
+            chunks = []
+            for idx, item in enumerate(latest_evidence, start=1):
+                text = getattr(item, "page_content", None)
+                if text is None and isinstance(item, dict):
+                    text = item.get("page_content") or item.get("content")
+                if text is None:
+                    text = str(item)
+                text = str(text).strip()
+                if not text:
+                    continue
+                chunks.append(f"{idx}. {text}")
+            if not chunks:
+                return "None."
+            return "\n".join(chunks)
+
+        latest_evidence_str = _format_latest_evidence_for_planner(raw_latest_evidence)
+        latest_evidence_query = state.get("latest_evidence_query") or "None."
+
         # Call LLM to analyze state and decide next step
         registry = PromptRegistry()
         prompt_template = registry.get_prompt("planner", "v4-inference")
@@ -105,6 +131,8 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
             {
                 "previous_messages": previous_messages,
                 "current_task": current_task_str,
+                "latest_evidence": latest_evidence_str,
+                "latest_evidence_query": latest_evidence_query,
             },
         )
 

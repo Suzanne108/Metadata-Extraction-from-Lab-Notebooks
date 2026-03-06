@@ -36,7 +36,10 @@ class ISAExtractionState(TypedDict):
     #evidence: dict[str, list[str]]
 
     # The latest retrieved evidence
-    #latest_evidence: list[str] | None
+    latest_evidence: list[str] | None
+
+    # The query string used to retrieve the latest_evidence
+    latest_evidence_query: str | None
 
     # Orientation: plain-text ISA mental model
     isa_mental_model: str | None

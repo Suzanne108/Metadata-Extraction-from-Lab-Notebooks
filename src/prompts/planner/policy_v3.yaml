@@ -16,7 +16,7 @@ template: |
   - When creating queries to search for inforamtion evidence in the reference document. Keep in mind that the reference document most likely does not use ISA terminology such as protocol, process, etc. You will need to adapt the queries to the document language.
   - Avoid duplication: do not repeat identical document queries or instructions.
   - Provide information: make sure that your subordinates have all the information they need to create their respective objects. To guide you in this, a brief explanation of the function of ISA objects will be provided.
-  - Do not search the document too many times for the same task. If you see that you already searched the document multiple times for this task, move on to UPDATE_DRAFT. Take into account that not all information you need might be present in the reference document. 
+  - Do not search the document too many times for the same task. If you see that you already searched the document multiple times for this task, move on to UPDATE_DRAFT. Take into account that not all information you need might be present in the reference document. As a guideline, do not search the document anymore when you see in your history that you already searched it 2 times.
 
   Action guidance:
   - SEARCH_DOCUMENT: You MUST use this when facts required to complete the Current Task are missing or uncertain.

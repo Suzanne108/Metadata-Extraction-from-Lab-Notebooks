@@ -15,12 +15,10 @@ class SampleDTO(BaseModel):
     name: str = Field(description="Sample name")
     characteristics: List[MaterialAttributeValueDTO] | None = Field(description="Characteristics of the sample")
     factor_value: List[FactorValueDTO] | None = Field(description="Factor value for the sample by id")
-    derivesFrom: Optional[str] = Field(description="Source material from which the sample is derived by id")
 
     def to_isatools_model(self) -> Sample:
         sample = Sample(
-            name=self.name,
-            derives_from=self.derivesFrom
+            name=self.name
         )
 
         try:

@@ -1,13 +1,32 @@
+from pathlib import Path
+
 from src.state import ISAExtractionState
 from langchain_openai import ChatOpenAI
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
 from src.prompts.renderer import render_prompt
 
 
-def create_document_overview(model: ChatOpenAI, system_prompt: str, inference_prompt_template: str):
+def create_document_overview(
+    model: ChatOpenAI,
+    system_prompt: str,
+    inference_prompt_template: str,
+    isa_mental_model_path: Path | None = None,
+):
 
     def document_overview(state: ISAExtractionState) -> dict:
-        mental_model = state.get("isa_mental_model", "") or ""
+        # Prefer a fixed ISA mental model loaded from disk, falling back to
+        # whatever is present in the state for backwards compatibility.
+        mental_model = ""
+        if isa_mental_model_path is not None:
+            try:
+                if isa_mental_model_path.exists():
+                    mental_model = isa_mental_model_path.read_text(encoding="utf-8")
+            except Exception:
+                # If reading fails for any reason, fall back to state
+                mental_model = state.get("isa_mental_model", "") or ""
+        else:
+            mental_model = state.get("isa_mental_model", "") or ""
+
         raw_doc = state.get("document")
 
         # document can be List[Document] or a single Document; handle both

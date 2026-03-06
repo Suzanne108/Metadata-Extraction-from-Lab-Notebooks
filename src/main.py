@@ -1,4 +1,5 @@
 from src.graphs.workflows.stateful_graph_workflow import run_stateful_graph_workflow, create_stateful_graph_workflow
+from src.graphs.workflows.isa_overview_workflow import run_isa_overview_workflow
 from src.graphs.utils import visualise_graph
 from pathlib import Path
 from isatools.isajson import ISAJSONEncoder
@@ -8,14 +9,14 @@ from isatools.model import Investigation, Study, Person, Publication
 from src.state import ISAExtractionState
 
 
-def print_mock_arabidopsis_study_from_json() -> None:
-    """Load the exported Mock Arabidopsis ISA-JSON and print the Study object.
+def print_ISA_from_json() -> None:
+    """Load the exported  ISA-JSON and print the Study object.
 
-    Assumes the file was written to output/Mock_Arabidopsis_Nitrogen_Study_extracted_isa.json
+    Assumes the file was written to output/name_isa.json
     using ISAJSONEncoder, and decodes it back into an Investigation with isajson.load.
     """
 
-    json_path = Path.cwd() / "output" / "Mock_Arabidopsis_Nitrogen_Study_extracted_isa.json"
+    json_path = Path.cwd() / "output" / "Dryzotron_protocol_testing_extracted_isa.json"
     if not json_path.exists():
         print(f"ISA-JSON file not found at: {json_path}")
         return
@@ -34,20 +35,35 @@ def print_mock_arabidopsis_study_from_json() -> None:
     print(first_study)
 
 
+def generate_isa_mental_model(output_path: Path | None = None) -> Path:
+    """Run the ISA-overview-only workflow and return the output file path.
+
+    This is a convenience wrapper so other code (or interactive sessions) can
+    trigger regeneration of the fixed ISA explanation used by the main graph.
+    """
+
+    path = run_isa_overview_workflow(output_path)
+    print(f"ISA overview written to: {path}")
+    return path
+
+
 if __name__ == "__main__":
+
+    #output_path = Path.cwd() / "output" / "ISA_mental_model.txt"
+    #generate_isa_mental_model(output_path)
 
     #document_path = Path.cwd() / "papers" / "Image-based_methods_for_phenotyping_growth_dynamics_and_fitness_components_in_arabidopsis_thaliana.pdf "
 
     #document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf"
 
-    #document_path = Path.cwd() / "papers" / "lab_journals" / "Dryzotron_protocol_testing.pdf"
+    document_path = Path.cwd() / "papers" / "lab_journals_2" / "LJ - H - 1.pdf"
 
     #visualise_graph(create_stateful_graph_workflow(document_path))
 
-    #run_stateful_graph_workflow(document_path=str(document_path))
+    run_stateful_graph_workflow(document_path=str(document_path))
 
     # After export, load the resulting ISA-JSON and print the Study object
-    print_mock_arabidopsis_study_from_json()
+    #print_ISA_from_json()
 
 
 

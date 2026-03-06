@@ -27,7 +27,11 @@ template: |
     - Materials: organism/sample types and roles
     - Factors: likely variables (e.g., genotype, treatment, timepoint)
     - Data files/modalities: what is produced/mentioned. Only record these if the reference document explicitely mentions produced files.
-    - Notes: any ambiguities or things to verify
+    - Notes: any ambiguities or things to verify.
+
+    Guidelines:
+    - When there are multiple variants of an object, always give all the variants separately. For example if there are samples collected from the source after 10 days and one sample collected after 20 days, you should give two separate sample objects.
+    - When in doubt, go for more atomic objects rather than convoluted objects.
 
     Make sure you make a proper distinction between a Source, a Sample and a Material. A Source is a biological starting material. A Sample is derived from a Source using a Process, applying a certain protocol. A Material, is any other non-biological material used in the experiment. 
 

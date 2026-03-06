@@ -34,6 +34,7 @@ def create_search_document_caller(search_document_tool: StructuredTool):
         return {
             "evidence": evidence,
             "latest_evidence": results,
+            "latest_evidence_query": query,
             "messages": [ToolMessage(content=message, tool_call_id="search_document")],
             "last_action": "SEARCH_DOCUMENT"
         }
