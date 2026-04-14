@@ -21,10 +21,19 @@ def create_task_decomposer(model: ChatOpenAI, system_prompt: str, inference_prom
 
         # Model is expected to be bound with structured output at workflow construction
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
-        response : List[Task] = model.invoke(messages)
+        response: List[Task] = model.invoke(messages)
 
-        preview = response.tasks[:3]
-        message_summary = f"Planned {len(response.tasks)} tasks.\nPreview: {preview}" if response.tasks else "No tasks parsed."
+        if response.tasks:
+            lines: List[str] = [f"Planned {len(response.tasks)} tasks:"]
+            for idx, task in enumerate(response.tasks, start=1):
+                # Log full details for each task so they appear in the streaming logs
+                lines.append(
+                    f"  {idx}. kind={task.kind}, target={task.target}, status={task.status}, "
+                    f"instruction={task.instruction}"
+                )
+            message_summary = "\n".join(lines)
+        else:
+            message_summary = "No tasks parsed."
 
         print(response)
 

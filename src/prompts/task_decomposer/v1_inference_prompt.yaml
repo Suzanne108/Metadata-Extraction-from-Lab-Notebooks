@@ -12,8 +12,9 @@ template: |
 
   Requirements
   - Each element is an object with fields: kind, target, instruction
-  - kind ∈ (investigation, study, assay, material, process, protocol, factor, data)
+  - kind ∈ (investigation, study, assay, source, sample, material, process, protocol, factor, datafile)
   - Be specific and reference numbered entity IDs (e.g., “Study #1”, “Assay #2”) when available.
-  - Prioritize tasks in a sensible execution order.
+  - Prioritize tasks using backwards, leaf-first execution order:
+    1) datafile, 2) material, 3) factor, 4) source, 5) sample, 6) protocol, 7) process (applies protocol),  8) assay, 9) study, 10) investigation.
 
   Output only the JSON array, nothing else.

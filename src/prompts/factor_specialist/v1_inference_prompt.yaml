@@ -1,0 +1,12 @@
+name: factor_specialist
+version: v1-inference
+
+input_variables:
+  - instruction
+  - latest_evidence
+  - existing_factors
+
+template: |
+  Instruction: {instruction}
+  Latest evidence: {latest_evidence}
+  Existing factors (by uid): {existing_factors}

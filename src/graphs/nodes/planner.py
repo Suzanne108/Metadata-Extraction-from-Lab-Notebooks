@@ -54,16 +54,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
 
         # Deterministic pre-checks (guardrails) before calling the LLM
         last_action = (state.get("last_action") or "").upper()
-        validation_ok = bool((state.get("validation_result") or {}).get("valid") is True)
-        consecutive_failures = int(state.get("consecutive_validation_failures") or 0)
         tasks_done = _all_tasks_completed(state)
-
-        vr = state.get("validation_result") or {}
-        vr = json.dumps(vr, indent=2)
-        draft = state.get("draft_isa_metadata") or {}
-        draft = json.dumps(draft, indent=2)
-        evidence = list(state.get("evidence").keys()) or []
-        evidence = json.dumps(evidence, indent=2)
 
         # 0) If all tasks are completed → STOP (END)
         if tasks_done:
@@ -73,30 +64,13 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
                 "orchestrator_decision": response
             }
 
-        # 1) After UPDATE_DRAFT → VALIDATE next
+        #After UPDATE_DRAFT → Next task
         if last_action == "UPDATE_DRAFT":
-            response = NextStep(action=Action.VALIDATE, instruction=None, query=None, k=None, rationale="guardrail: validate after update")
+            response = NextStep(action=Action.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: next task after update")
             return {
                 "messages": trimmed_messages(state, [create_planner_message(response)]),
                 "orchestrator_decision": response
             }
-
-        # 2) After VALIDATE + valid → FINISH_TASK
-        if last_action == "VALIDATE" and validation_ok:
-            response = NextStep(action=Action.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: finish after successful validation")
-            return {
-                "messages": trimmed_messages(state, [create_planner_message(response)]),
-                "orchestrator_decision": response
-            }
-
-        # 2b) After VALIDATE + invalid too many times → STOP for review
-        if last_action == "VALIDATE" and not validation_ok:
-            if consecutive_failures >= 5:
-                response = NextStep(action=Action.STOP, instruction=None, query=None, k=None, rationale="guardrail: too many consecutive validation failures → stop for human review")
-                return {
-                    "messages": trimmed_messages(state, [create_planner_message(response)]),
-                    "orchestrator_decision": response
-                }
 
         # Otherwise, call LLM to analyze state and decide next step
         
@@ -123,17 +97,42 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         else:
             current_task_str = "None"
 
+        # Prepare latest evidence (last retrieved document chunks) for the planner
+        raw_latest_evidence = state.get("latest_evidence") or []
+        # Normalize and stringify similar to specialist agents
+        def _format_latest_evidence_for_planner(latest_evidence):
+            if not latest_evidence:
+                return "None."
+            if not isinstance(latest_evidence, list):
+                latest_evidence = [latest_evidence]
+            chunks = []
+            for idx, item in enumerate(latest_evidence, start=1):
+                text = getattr(item, "page_content", None)
+                if text is None and isinstance(item, dict):
+                    text = item.get("page_content") or item.get("content")
+                if text is None:
+                    text = str(item)
+                text = str(text).strip()
+                if not text:
+                    continue
+                chunks.append(f"{idx}. {text}")
+            if not chunks:
+                return "None."
+            return "\n".join(chunks)
+
+        latest_evidence_str = _format_latest_evidence_for_planner(raw_latest_evidence)
+        latest_evidence_query = state.get("latest_evidence_query") or "None."
+
         # Call LLM to analyze state and decide next step
         registry = PromptRegistry()
         prompt_template = registry.get_prompt("planner", "v4-inference")
         prompt = render_prompt(
             prompt_template,
             {
-                "draft": draft,
-                "validation_result": vr,
-                "evidence": evidence,
                 "previous_messages": previous_messages,
                 "current_task": current_task_str,
+                "latest_evidence": latest_evidence_str,
+                "latest_evidence_query": latest_evidence_query,
             },
         )
 
