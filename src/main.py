@@ -2,37 +2,12 @@ from src.graphs.workflows.stateful_graph_workflow import run_stateful_graph_work
 from src.graphs.workflows.isa_overview_workflow import run_isa_overview_workflow
 from src.graphs.utils import visualise_graph
 from pathlib import Path
-from isatools.isajson import ISAJSONEncoder
-from isatools import isajson
-from isatools.model import Investigation, Study, Person, Publication
 
-from src.state import ISAExtractionState
+from src.plotting_results.category_assessment_plots import (
+    plot_results_grouped,
+    plot_results_stacked,
+)
 
-
-def print_ISA_from_json() -> None:
-    """Load the exported  ISA-JSON and print the Study object.
-
-    Assumes the file was written to output/name_isa.json
-    using ISAJSONEncoder, and decodes it back into an Investigation with isajson.load.
-    """
-
-    json_path = Path.cwd() / "output" / "Dryzotron_protocol_testing_extracted_isa.json"
-    if not json_path.exists():
-        print(f"ISA-JSON file not found at: {json_path}")
-        return
-
-    with open(json_path, "r", encoding="utf-8") as f:
-        inv = isajson.load(f)
-
-    studies = getattr(inv, "studies", None) or []
-    if not studies:
-        print("No Study objects found in loaded Investigation.")
-        return
-
-    # Print the first study object; extend as needed for multiple studies
-    first_study = studies[0]
-    print("Loaded Study object from ISA-JSON:")
-    print(first_study)
 
 
 def generate_isa_mental_model(output_path: Path | None = None) -> Path:
@@ -46,24 +21,18 @@ def generate_isa_mental_model(output_path: Path | None = None) -> Path:
     print(f"ISA overview written to: {path}")
     return path
 
-
 if __name__ == "__main__":
 
     #output_path = Path.cwd() / "output" / "ISA_mental_model.txt"
     #generate_isa_mental_model(output_path)
 
-    #document_path = Path.cwd() / "papers" / "Image-based_methods_for_phenotyping_growth_dynamics_and_fitness_components_in_arabidopsis_thaliana.pdf "
-
-    #document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf"
-
-    document_path = Path.cwd() / "papers" / "lab_journals_2" / "LJ - H - 1.pdf"
+    #document_path = Path.cwd() / "papers" / "lab_journals_new" / "LJ - P - 1.pdf"
 
     #visualise_graph(create_stateful_graph_workflow(document_path))
 
-    run_stateful_graph_workflow(document_path=str(document_path))
+    #run_stateful_graph_workflow(document_path=str(document_path))
 
-    # After export, load the resulting ISA-JSON and print the Study object
-    #print_ISA_from_json()
+    plot_results_grouped()
 
 
 
