@@ -23,16 +23,10 @@ def generate_isa_mental_model(output_path: Path | None = None) -> Path:
 
 if __name__ == "__main__":
 
-    #output_path = Path.cwd() / "output" / "ISA_mental_model.txt"
-    #generate_isa_mental_model(output_path)
+    document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf" 
 
-    #document_path = Path.cwd() / "papers" / "lab_journals_new" / "LJ - P - 1.pdf"
+    run_stateful_graph_workflow(document_path=str(document_path))
 
-    #visualise_graph(create_stateful_graph_workflow(document_path))
-
-    #run_stateful_graph_workflow(document_path=str(document_path))
-
-    plot_results_grouped()
 
 
 
