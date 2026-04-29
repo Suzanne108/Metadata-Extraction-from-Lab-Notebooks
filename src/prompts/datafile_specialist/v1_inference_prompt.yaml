@@ -1,0 +1,14 @@
+name: datafile_specialist
+version: v1-inference
+
+input_variables:
+  - instruction
+  - latest_evidence
+  - existing_processes
+  - existing_datafiles
+
+template: |
+  Instruction: {instruction}
+  Latest evidence: {latest_evidence}
+  Existing processes (by uid): {existing_processes}
+  Existing datafiles (by uid): {existing_datafiles}

@@ -1,0 +1,12 @@
+name: protocol_specialist
+version: v1-inference
+
+input_variables:
+  - instruction
+  - latest_evidence
+  - existing_protocols
+
+template: |
+  Instruction: {instruction}
+  Latest evidence: {latest_evidence}
+  Existing protocols (by uid): {existing_protocols}

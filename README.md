@@ -1,93 +1,135 @@
-# Metadata Extraction From Lab Journals
+﻿# Metadata Extraction from Lab Journals
 
+A multi-agent LLM system that extracts structured metadata from scientific lab journal PDFs and converts it into [ISA (Investigation, Study, Assay)](https://isa-tools.org/) compliant JSON. Built with [LangGraph](https://langchain-ai.github.io/langgraph/).
 
+This is the code for the master thesis `Metadata Extraction from Scientific Lab Notebooks: Design and Evaluation of a Mulit-Agent System.` by Suzanne Backer, Tu Delft 2026.
 
-## Getting started
+---
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Background
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Lab journals contain rich experimental metadata — protocols, factors, sample descriptions, and measurements — but this information is typically written in free-form text. The ISA framework provides a standardised schema for representing this metadata, enabling FAIR (Findable, Accessible, Interoperable, Reusable) data practices. This project bridges the gap by proving a multi-agent system to extract and structure that information. 
 
-## Add your files
+## How It Works
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+The system processes a PDF lab journal through a stateful graph workflow:
+
+1. **Document Overview** — The document is loaded and indexed into a vector store; an LLM produces a structured overview.
+2. **Task Decomposition** — The overview is broken down into a list of ISA extraction tasks.
+3. **Specialist Agents** — A planner routes tasks to dedicated agents for each ISA component: Investigation, Study, Assay, Source, Sample, Material, Protocol, Process, Factor, and DataFile.
+4. **Assembly Advisor** — Reviews and validates the assembled ISA objects, flagging missing or inconsistent metadata.
+5. **Export** — The final ISA object tree is written to a JSON file.
+
+## Project Structure
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.tudelft.nl/msc-thesis-suzanne/metadata-extraction-from-lab-journals.git
-git branch -M main
-git push -uf origin main
+src/
+├── main.py                     # Entry point
+├── model.py                    # LLM and embedding model configuration
+├── state.py                    # LangGraph state definition
+├── document_processing.py      # PDF loading and vector store indexing
+├── task.py                     # Definition of Task object
+├── tools.py                    # LangChain tool definitions
+├── graphs/
+│   ├── workflows/              # Full graph workflow definitions
+│   ├── nodes/                  # Individual graph node implementations
+│   └── types/                  # DTOs and type definitions for ISA objects
+└── prompts/                    # YAML prompt templates per agent/version
+instructions/
+└── schemas/                    # JSON schemas for all ISA object types
+output/                         # Extracted ISA JSON files and logs
+papers/                         # An AI-generated mock lab notebook/paper
 ```
 
-## Integrate with your tools
+## Requirements
 
-- [ ] [Set up project integrations](https://gitlab.tudelft.nl/msc-thesis-suzanne/metadata-extraction-from-lab-journals/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- Python 3.11 or higher
+- An [OpenAI API key](https://platform.openai.com/api-keys)
+    - Altneratively, other LLM providers can easily be integrated into the workflow by adapting `model.py`
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+
+**1. Clone the repository**
+
+```bash
+git clone <repository-url>
+cd metadata-extraction-from-lab-journals
+```
+
+**2. Create and activate a virtual environment**
+
+```bash
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
+```
+
+**3. Install dependencies**
+
+```bash
+pip install -r requirements.txt
+```
+
+**4. Configure environment variables**
+
+Create a `.env` file in the project root:
+
+```
+OPENAI_API_KEY=your_openai_api_key_here
+```
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Extract ISA metadata from a lab journal
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Edit `src/main.py` and set the path to your PDF lab journal, then run:
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```python
+from src.graphs.workflows.stateful_graph_workflow import run_stateful_graph_workflow
+from pathlib import Path
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+document_path = Path("papers/your_journal.pdf")
+run_stateful_graph_workflow(document_path=str(document_path))
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+Run from the project root:
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```bash
+python -m src.main
+```
 
-## License
-For open source projects, say how it is licensed.
+The extracted ISA JSON and a run log will be written to the `output/` directory.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### Regenerate the ISA mental model
+
+The ISA mental model is a plain-text explanation of the ISA framework used to guide the agents. To regenerate it:
+
+```python
+from src.main import generate_isa_mental_model
+from pathlib import Path
+
+generate_isa_mental_model(Path("output/ISA_mental_model.txt"))
+```
+
+### Visualise the workflow graph
+
+```python
+from src.graphs.workflows.stateful_graph_workflow import create_stateful_graph_workflow
+from src.graphs.utils import visualise_graph
+from pathlib import Path
+
+document_path = Path("papers/lab_journals/your_journal.pdf")
+visualise_graph(create_stateful_graph_workflow(document_path))
+```
+
+## Output Format
+
+Each run produces:
+- `<journal_name>_extracted_isa.json` — the full ISA object tree (Investigation → Studies → Assays → Processes, Samples, Protocols, etc.)
+- `<journal_name>_assembly_advice.txt` — the assembly advisor's advise on how extracted ISA entities should be connected to create a proper ISA workflow.
+- `stream_log_<run_id>.txt` — full message trace for the run
+
