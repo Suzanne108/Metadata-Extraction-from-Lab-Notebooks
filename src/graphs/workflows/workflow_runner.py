@@ -3,8 +3,8 @@ import uuid
 from langchain_core.runnables import RunnableConfig
 
 from src.graphs.utils import stream_messages
-from src.graphs.workflows.stateful_graph_workflow import create_stateful_graph_workflow
-from src.graphs.workflows.final_state import handle_final_state
+from src.graphs.workflows.isa_extraction_workflow.isa_extraction_workflow_builder import create_stateful_graph_workflow
+from src.graphs.workflows.isa_extraction_workflow.final_state import handle_final_state
 from src.state import ISAExtractionState
 
 #TODO: make this method general, so that any kind of workflow can be run using this method.
