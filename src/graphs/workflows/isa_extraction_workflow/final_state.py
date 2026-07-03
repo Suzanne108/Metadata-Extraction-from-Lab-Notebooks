@@ -1,7 +1,7 @@
 from src.graphs.utils import write_final_state
 from src.state import ISAExtractionState
 
-#TODO: create a separate folder for specialist-agent workflow, where all its relevant code is located.
+# Move the handle final state functionality from utils to here
 
 
 def handle_final_state(app, config, run_id) -> ISAExtractionState | None:

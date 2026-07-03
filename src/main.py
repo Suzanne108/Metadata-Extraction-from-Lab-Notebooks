@@ -1,6 +1,8 @@
-from src.graphs.workflows.run_workflow import run_stateful_graph_workflow
-from src.graphs.workflows.initial_state import create_initial_state
-from src.graphs.workflows.isa_overview_workflow import run_isa_overview_workflow
+from src.graphs.workflows.workflow_runner import run_graph_workflow
+from src.graphs.workflows.isa_extraction_workflow.initial_state import create_initial_state
+from src.graphs.workflows.isa_extraction_workflow.isa_extraction_workflow_builder import create_stateful_graph_workflow
+from src.graphs.workflows.isa_extraction_workflow.final_state import handle_final_state
+from src.graphs.workflows.isa_overview_workflow.isa_overview_workflow import run_isa_overview_workflow
 from src.graphs.utils import visualise_graph
 from pathlib import Path
 
@@ -31,7 +33,14 @@ if __name__ == "__main__":
     #TODO: add options to tweak the document embedding strategy
 
     initial_state = create_initial_state(str(document_path))
-    run_stateful_graph_workflow(document_path=str(document_path), initial_state=initial_state)
+    app = create_stateful_graph_workflow(str(document_path))
+    app, config, run_id = run_graph_workflow(
+        app=app,
+        initial_state=initial_state,
+        run_prefix="isa-extract",
+        stream=True,
+    )
+    handle_final_state(app, config, run_id)
 
 
     #TODO:add tests to for example test the hardcoded parts of the workflow.
