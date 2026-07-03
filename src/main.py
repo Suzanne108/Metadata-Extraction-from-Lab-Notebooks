@@ -1,4 +1,5 @@
-from src.graphs.workflows.stateful_graph_workflow import run_stateful_graph_workflow, create_stateful_graph_workflow
+from src.graphs.workflows.run_workflow import run_stateful_graph_workflow
+from src.graphs.workflows.initial_state import create_initial_state
 from src.graphs.workflows.isa_overview_workflow import run_isa_overview_workflow
 from src.graphs.utils import visualise_graph
 from pathlib import Path
@@ -25,7 +26,11 @@ if __name__ == "__main__":
 
     document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf" 
 
-    run_stateful_graph_workflow(document_path=str(document_path))
+    #TODO: change that document_path should only be injected once
+    #TODO: add options to tweak the document embedding strategy
+
+    initial_state = create_initial_state(str(document_path))
+    run_stateful_graph_workflow(document_path=str(document_path), initial_state=initial_state)
 
 
 

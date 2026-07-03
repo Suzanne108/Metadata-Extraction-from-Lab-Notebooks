@@ -1,16 +1,14 @@
-import uuid
 from pathlib import Path
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
-from langchain_core.runnables import RunnableConfig
 
 from src.graphs.nodes.document_overview import create_document_overview
 from src.graphs.nodes.task_decomposer import create_task_decomposer
 from src.model import get_chat_model
 from src.graphs.nodes.planner import create_planner
 from src.tools import create_doc_getter, create_schema_getter
-from src.graphs.utils import index_document, stream_messages, write_final_state
+from src.graphs.utils import index_document
 from src.graphs.nodes.routing_function import routing_function, team_lead_routing
 from src.graphs.nodes.assembly_advisor import create_assembly_advisor
 from src.graphs.nodes.investigation_export import create_investigation_export_node
@@ -369,37 +367,3 @@ def create_stateful_graph_workflow(document_path: str = None) -> StateGraph:
 
     return app
 
-def run_stateful_graph_workflow(document_path: str) -> ISAExtractionState | None:
-    app = create_stateful_graph_workflow(document_path)
-
-    doc_manager = index_document(document_path)
-    document = doc_manager.document
-
-    # Initialize empty state
-    initial_state = ISAExtractionState(
-        document = document,
-        messages=[],
-        draft_isa_metadata={},
-        evidence={},
-        validation_result={},
-        isa_mental_model="",
-        document_overview="",
-        tasks=[],
-        last_action=None
-    )
-
-    # Provide a thread_id so checkpoints are recorded under this session
-    run_id = uuid.uuid4()
-    thread_id = f"isa-extract-{run_id}"
-    config = RunnableConfig(recursion_limit=9000000, configurable={"thread_id": thread_id})
-
-    stream_messages(run_id, app, initial_state, config=config)
-
-    # After streaming completes, fetch the final state
-    try:
-        state_snapshot = app.get_state(config)
-        write_final_state(state_snapshot, run_id)
-        return state_snapshot
-    except Exception as e:
-        print(f"Failed to retrieve final state: {e}")
-        return None
