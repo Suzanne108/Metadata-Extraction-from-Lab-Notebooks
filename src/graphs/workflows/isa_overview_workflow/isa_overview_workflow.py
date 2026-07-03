@@ -1,7 +1,8 @@
 from pathlib import Path
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import StateGraph
 
+from src.graphs.core import WorkflowGraphBuilder
 from src.state import ISAExtractionState
 from src.graphs.types.Node import Node
 from src.graphs.nodes.isa_overview import create_isa_overview
@@ -41,17 +42,21 @@ def create_isa_overview_graph() -> StateGraph:
 
     # Reuse the same node construction as the main workflow used to do
     schema_getter_tools = create_schema_getter()
-    registry = PromptRegistry()
+    registry = PromptRegistry.get_instance()
     isa_overview_node = build_isa_overview_node(registry, schema_getter_tools)
 
-    graph = StateGraph(ISAExtractionState)
-    graph.add_node(Node.ISA_OVERVIEW.value, isa_overview_node)
+    nodes = {Node.ISA_OVERVIEW.value: isa_overview_node}
+    edges = [
+        ("START", Node.ISA_OVERVIEW.value),
+        (Node.ISA_OVERVIEW.value, "END"),
+    ]
 
-    graph.add_edge(START, Node.ISA_OVERVIEW.value)
-    graph.add_edge(Node.ISA_OVERVIEW.value, END)
+    # No checkpointer needed here; we only care about the final state.
+    builder = WorkflowGraphBuilder(ISAExtractionState)
+    return builder.add_nodes(nodes).add_edges(edges).compile()
 
-    # No checkpointer needed here; we only care about the final state
-    return graph.compile()
+
+# TODO: refactor this into a more general-purpose workflow runner that can be used for any graph, not just the ISA overview one.
 
 
 def run_isa_overview_workflow(output_path: Path | None = None) -> Path:

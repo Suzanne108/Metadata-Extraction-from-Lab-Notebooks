@@ -15,7 +15,7 @@ def get_chat_model():
     load_dotenv(dotenv_path=Path.cwd() / ".env")
     open_ai_key = os.getenv("OPENAI_API_KEY")
 
-    return ChatOpenAI(model="gpt-5-mini", temperature=0, api_key=open_ai_key)
+    return ChatOpenAI(model="gpt-5-nano", temperature=0, api_key=open_ai_key)
 
 def get_embedding_model():
     """Returns basic embedding model configuration."""

@@ -16,15 +16,15 @@ from src.prompts.registry import PromptRegistry
 def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
 
     def to_internal(r) -> NextStep:
-            if isinstance(r, NextStepLLM):
-                return NextStep(
-                    action=Action[r.action.name],
-                    instruction=r.instruction,
-                    query=r.query,
-                    k=r.k,
-                    rationale=r.rationale,
-                )
-            return r  # already NextStep from guardrails
+        if isinstance(r, NextStepLLM):
+            return NextStep(
+                action=Action[r.action.name],
+                instruction=r.instruction,
+                query=r.query,
+                k=r.k,
+                rationale=r.rationale,
+            )
+        return r  # already NextStep from guardrails
 
     def create_planner_message(response) -> AIMessage:
         "Creates an AIMessage from the NextStep response"
@@ -129,7 +129,7 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         latest_evidence_query = state.get("latest_evidence_query") or "None."
 
         # Call LLM to analyze state and decide next step
-        registry = PromptRegistry()
+        registry = PromptRegistry.get_instance()
         prompt_template = registry.get_prompt("planner", "v4-inference")
         prompt = render_prompt(
             prompt_template,

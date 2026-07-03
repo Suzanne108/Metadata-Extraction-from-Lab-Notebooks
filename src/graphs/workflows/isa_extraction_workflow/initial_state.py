@@ -1,6 +1,8 @@
 from src.graphs.utils import index_document
 from src.state import ISAExtractionState
 
+#TODO: refactor initial state and final state into some kind of larger class that can also run and build the workflow
+
 
 def create_initial_state(document_path: str) -> ISAExtractionState:
     """Index the document and return the initial workflow state."""
