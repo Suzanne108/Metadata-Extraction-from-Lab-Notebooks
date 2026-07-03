@@ -33,6 +33,7 @@ def _natural_key(dto: BaseModel) -> str:
     """Compute a deterministic natural key string based on known fields per DTO type.
     Falls back to a hash of the entire model dict if specifics are unavailable.
     """
+    #TODO: why is this necessary? Is there a better way to do this? Can I use the uid attribute of the DTOs instead of computing a natural key?
     t = type(dto).__name__
     d = _model_to_dict_safe(dto)
 
@@ -139,6 +140,7 @@ def ensure_dto_uid_and_register(state: dict, dto: BaseModel, max_depth: int = 2)
     """Ensure uid and register dto and shallow-nested DTOs (lists or single) into appropriate registries.
     Returns a dict of state updates for all touched registries.
     """
+    #TODO: why is this method necessary?
     updates: Dict[str, Any] = {}
 
     def _accumulate(update: dict):
@@ -214,6 +216,8 @@ def _diff_tasks(prev_keys: set[str], curr_list: List) -> tuple[str, set[str]]:
         return ("\n".join(lines) + ("\n" if lines else ""), curr_keys)
     except Exception:
         return ("", prev_keys)
+    
+#TODO: remove this method and instead directly use the DocumentManager class in document_processing.py
 
 def index_document(document_path) -> DocumentManager:
     doc_manager = DocumentManager()
@@ -329,6 +333,9 @@ def trimmed_messages(state: dict, additions: list | None = None, max_messages: i
         kept.append(m)
     kept.reverse()
     return kept
+
+#TODO: this method is too long and complex. Consider refactoring into smaller helper methods for clarity and maintainability.
+#TODO: is there a better way of streaming the messages? The resulting file will be very large and it will be hard to read. Maybe I can use a different format or a different way of storing the messages.
 
 def stream_messages(run_id, agent, state, config: RunnableConfig = None, output_path: str | Path = None, buffer_size: int = 10, flush_interval: float = 5.0):
     """
@@ -545,6 +552,8 @@ def visualise_graph(app_or_graph: StateGraph, output_path: str | Path = None):
     print(f"Graph visualization saved to: {output_path}")
     
 
+#TODO: add documentation for this method
+
 def write_final_state(final_state, run_id: str, output_path: str | Path = None) -> Path:
     if output_path is None:
         output_path = Path.cwd() / "output" / f"isa_draft_{run_id}.json"
@@ -554,3 +563,5 @@ def write_final_state(final_state, run_id: str, output_path: str | Path = None) 
     with p.open("w", encoding="utf-8") as f:
         json.dump(draft or {}, f, ensure_ascii=False, indent=2)
     return p
+
+#TODO: should this file be split? Maybe the DTO registry and UID helpers should be in a separate file, and the logging helpers in another. This file is getting quite long and complex.

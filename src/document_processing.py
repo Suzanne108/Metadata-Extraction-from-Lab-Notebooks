@@ -6,7 +6,7 @@ from src.model import get_embedding_model
 from langchain_core.vectorstores import InMemoryVectorStore
 from src.utils import log
 
-
+#TODO: should the embedding of the document be decoupled from the retrieve semantic chunk function? Should the embedding be done in a separate step and then the retrieval be done on the embedded document? Is there a better way to do this?
 
 class DocumentManager():
 
@@ -21,12 +21,15 @@ class DocumentManager():
         loader = PyPDFLoader(file_path, mode="single")
         doc = loader.load()
 
+        #TODO: This return can be shorter
+
         self.document = doc
 
         return doc
 
     def _chunk_doc(self, documents: List[Document], chunk_size: int = 1000, chunk_overlap: int = 200) -> List[Document]:
         """ Chunks documents into smaller pieces """
+        #TODO: add better documentation for arguments and return type
 
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size, 
@@ -44,6 +47,7 @@ class DocumentManager():
         chunks = self._chunk_doc(docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         chunk_ids = self.vector_store.add_documents(chunks)
 
+        #TODO: think about do I want to use the log function or remove it?
         log(f"Added document to vector store")
 
         return chunk_ids

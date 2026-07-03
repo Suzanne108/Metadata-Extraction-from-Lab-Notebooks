@@ -11,6 +11,7 @@ from src.prompts.renderer import render_prompt
 from src.prompts.registry import PromptRegistry
 
 #TODO: refactor so that the inference prompt can be given as argument
+#TODO: why does this need to be wrapped in a create_planner function? Can't I create an object of a Planner class instead? Is there a better way to do this? --> same for other nodes
 
 def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
 
@@ -48,6 +49,10 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
             return all(getattr(t, "status", None) == "completed" for t in tasks)
         except Exception:
             return False
+        
+    #TODO: rename method to something more descriptive, like "plan_next_step" or "decide_next_action"
+
+    #TODO: break up this method into smaller helper methods for clarity and maintainability. It's currently too long and complex.
 
     def planner(state: ISAExtractionState ) -> dict:
         "Decides next action based on the current state"
@@ -141,9 +146,11 @@ def create_planner(model: ChatOpenAI, system_prompt: str, policy_prompt: str):
         # LLM returns NextStepLLM; translate to internal NextStep for state
         response_llm = model.invoke(messages)
 
+        #TODO: why is wrapping in NextStepLLM necessary? Can I just return the LLM response directly? Is there a better way to do this?
+
         response_internal = to_internal(response_llm)
 
-        # Emit only the new planner message; LangGraph's additive channel will accumulate.
+        # Emit only the new planner message
         return {
             "messages": [create_planner_message(response_internal)],
             "orchestrator_decision": response_internal

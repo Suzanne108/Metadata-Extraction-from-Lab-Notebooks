@@ -19,6 +19,7 @@ def generate_isa_mental_model(output_path: Path | None = None) -> Path:
     """
 
     path = run_isa_overview_workflow(output_path)
+    #TODO: remove unnecessary print statemtents
     print(f"ISA overview written to: {path}")
     return path
 
@@ -31,6 +32,9 @@ if __name__ == "__main__":
 
     initial_state = create_initial_state(str(document_path))
     run_stateful_graph_workflow(document_path=str(document_path), initial_state=initial_state)
+
+
+    #TODO:add tests to for example test the hardcoded parts of the workflow.
 
 
 

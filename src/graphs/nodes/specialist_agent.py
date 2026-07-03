@@ -8,6 +8,8 @@ from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
 from src.graphs.utils import ensure_dto_uid_and_register
 
+#TODO: create a more proper factory pattern for creating specialist agents. This is a temporary solution to avoid code duplication. 
+
 
 def create_specialist_agent(
     model: ChatOpenAI,

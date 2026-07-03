@@ -10,6 +10,8 @@ from jsonschema import validate, ValidationError
 def create_doc_getter(doc_manager: DocumentManager) -> List:
     """Creates tools with access to their dependencies"""
 
+    #TODO: What is this kind of dependency injection called? Is there a better way to do this?
+
     @tool("search_document", description="Given a search query, retrieves k relevant pieces from the document")
     def search_document(query: str, k: int = 1) -> List[Document]:
         """ Retrieves relevant chunks from the extraction document """

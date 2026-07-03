@@ -22,6 +22,8 @@ from src.graphs.types.DTOs.SampleDTO import SampleDTO
 from src.graphs.types.DTOs.MaterialDTO import MaterialDTO
 from src.graphs.types.DTOs.DataDTO import DataFileDTO
 
+#TODO: this state is specific for the ISA extraction workflow. Should there be a more general state type for other workflows? Is there a better way to do this?
+
 
 class ISAExtractionState(TypedDict):
     """Extended state for staged workflow: overview -> decomposition -> planner loop."""
@@ -31,6 +33,8 @@ class ISAExtractionState(TypedDict):
 
     # The latest decision from the orchestrator
     orchestrator_decision: NextStep | None
+
+    #TODO: remove state fields that are not used.
 
     # Evidence per query
     #evidence: dict[str, list[str]]

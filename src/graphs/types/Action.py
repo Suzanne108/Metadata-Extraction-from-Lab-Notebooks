@@ -13,3 +13,6 @@ class ActionLLM(Enum):
     SEARCH_DOCUMENT = "search contextual document"
     #VALIDATE = "validate current version"
     UPDATE_DRAFT = "ISA drafting agent"
+
+
+#TODO: should this folder be named types or is there some other best practice for this?

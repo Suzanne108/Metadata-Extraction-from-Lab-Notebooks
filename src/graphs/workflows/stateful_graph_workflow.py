@@ -46,6 +46,8 @@ def create_workflow_dependencies(document_path: str = None):
 
     return search_document_caller, schema_getter_tools
 
+#TODO: could I refactor these build methods using some kind of factory pattern? They are all very similar, but with different DTOs and prompts.
+
 
 def build_planner_node(registry: PromptRegistry):
     """Create the planner node with structured output and prompts."""
@@ -216,6 +218,7 @@ def build_assembly_advisor_node(registry: PromptRegistry):
     infer_prompt = registry.get_prompt("assembly_advisor", "v1-inference")
     return create_assembly_advisor(model, system_prompt, infer_prompt)
 
+#TODO: do not inject the depencencies into the build_graph method, but rather have the build_graph method call the dependency creation methods itself. This will make it easier to call the build_graph method from other code without having to create all the dependencies first.
 
 def build_graph(
     doc_overview_node,
@@ -321,6 +324,8 @@ def build_graph(
 
 
 def create_stateful_graph_workflow(document_path: str = None) -> StateGraph:
+
+    #TODO: remove unnecessary dependencies
     # Dependencies
     search_document_caller, schema_getter_tools = create_workflow_dependencies(document_path)
 

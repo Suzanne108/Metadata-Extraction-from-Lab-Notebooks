@@ -7,6 +7,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 import os
 
+# TODO: this should be changed so that you can centrally for the workflow determine which components should be using which model. For example, the planner should use a different model than the specialist agents. This should be configurable in a central place, rather than hardcoded in this file.
 def get_chat_model():
     """"Returns basic LLM model configuration."""
 
