@@ -36,5 +36,3 @@ class LLMGraphNode(BaseGraphNode):
 
 class DeterministicGraphNode(BaseGraphNode):
     """Base class for nodes with deterministic/scripted state transitions."""
-
-#TODO: change location of node files based on their type (LLM vs deterministic) to avoid confusion. For example, move tool_callers.py to a new src/graphs/nodes/deterministic/ folder.
