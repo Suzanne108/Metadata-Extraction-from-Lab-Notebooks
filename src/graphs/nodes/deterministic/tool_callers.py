@@ -4,6 +4,7 @@ from langchain.messages import ToolMessage
 from langchain_core.tools import StructuredTool
 import json as _json
 from src.graphs.nodes.base_node import DeterministicGraphNode
+from src.graphs.types.Action import WorkflowAction
 from src.graphs.types.Node import GraphComponentId
     
 
@@ -15,24 +16,24 @@ class SearchDocumentCallerNode(DeterministicGraphNode):
         self.search_document_tool = search_document_tool
 
     def run(self, state: ISAExtractionState):
-        if not state['orchestrator_decision'].query:
+        if not state['planner_decision'].query:
             return{
                 "messages": [ToolMessage(content="No query provided for document search.", tool_call_id="search_document")]
             }
-        query = state['orchestrator_decision'].query
+        query = state['planner_decision'].query
 
         # Call the search document tool
         if hasattr(self.search_document_tool, "run"):
-            results = self.search_document_tool.run(query, k=state['orchestrator_decision'].k or 1)
+            results = self.search_document_tool.run(query, k=state['planner_decision'].k or 1)
         elif callable(self.search_document_tool):
-            results = self.search_document_tool(query, k=state['orchestrator_decision'].k or 1)
+            results = self.search_document_tool(query, k=state['planner_decision'].k or 1)
         else:
             raise TypeError("search_document_tool is not callable and has no .run() method")
         try:
             retrieved_count = len(results) if hasattr(results, "__len__") else 1
         except Exception:
             retrieved_count = 1
-        message = f"NODE: SEARCH_DOCUMENT; query: {query}; k: {state['orchestrator_decision'].k or 1}; retrieved_count: {retrieved_count}"
+        message = f"NODE: SEARCH_DOCUMENT; query: {query}; k: {state['planner_decision'].k or 1}; retrieved_count: {retrieved_count}"
 
         # Copy the evidence dict and update it; dict.update() returns None so avoid using it directly
         evidence = dict(state.get("evidence", {}))
@@ -43,7 +44,7 @@ class SearchDocumentCallerNode(DeterministicGraphNode):
             "latest_evidence": results,
             "latest_evidence_query": query,
             "messages": [ToolMessage(content=message, tool_call_id="search_document")],
-            "last_action": "SEARCH_DOCUMENT"
+            "last_action": WorkflowAction.SEARCH_DOCUMENT
         }
 
 #TODO: not sure the name of this file is appropriate
@@ -55,7 +56,7 @@ def validate(state: ISAExtractionState):
         message = "No draft ISA metadata to validate."
         return {
             "messages": state.get("messages", []) + [ToolMessage(content=message, tool_call_id="validation")],
-            "last_action": "VALIDATE"
+            "last_action": WorkflowAction.VALIDATE
         }
     
     # TODO: Fix validation calling code
@@ -94,7 +95,7 @@ def validate(state: ISAExtractionState):
             "validation_result": validation_result,
             "consecutive_validation_failures": failures,
             "last_validation_json_path": last_path,
-            "last_action": "VALIDATE"
+            "last_action": WorkflowAction.VALIDATE
         }
 
 

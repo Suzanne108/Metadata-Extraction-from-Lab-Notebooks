@@ -9,3 +9,4 @@ class ExperimentSetup:
     description: str
     node_model_names: dict[str, str]
     node_prompt_configs: dict[str, dict[str, str]] = field(default_factory=dict)
+    #TODO: add which workflow is being used

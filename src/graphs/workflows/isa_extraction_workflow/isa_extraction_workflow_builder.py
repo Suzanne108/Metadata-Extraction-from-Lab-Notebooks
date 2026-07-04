@@ -32,6 +32,7 @@ class ISAExtractionWorkflowBuilder:
         self,
         document_path: str | None = None,
         *,
+        #TODO: why is there a difference between models and model names? Shouldn't the model name be used to get the model object? Is there a reason to have both?
         node_models: dict[str, Any] | None = None,
         node_model_names: dict[str, str] | None = None,
         default_model: Any | None = None,
@@ -265,6 +266,8 @@ class ISAExtractionWorkflowBuilder:
         """Build and compile the configured ISA extraction workflow."""
         nodes = self._build_nodes()
         return self._compile_graph(nodes)
+    
+#TODO: is this create_stateful_graph_workflow function needed? It seems to be a wrapper around the ISAExtractionWorkflowBuilder class. Should it be removed or refactored to be more general-purpose for other workflows?
 
 def create_stateful_graph_workflow(
     document_path: str = None,

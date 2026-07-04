@@ -3,6 +3,7 @@ from langchain.messages import SystemMessage, HumanMessage, AIMessage
 
 from src.graphs.nodes.base_node import LLMGraphNode
 from src.graphs.types.Node import GraphComponentId
+from src.graphs.types.Action import WorkflowAction
 from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
 from src.graphs.types.TeamLeadDecision import TeamLeadDecision
@@ -27,7 +28,7 @@ class ISATeamLeadNode(LLMGraphNode):
         return f"Routed to {decision.target} specialist \n for subtask: {decision.instruction}. \n Reason: {decision.rationale}"
 
     def run(self, state: ISAExtractionState) -> dict:
-        instruction = state.get("orchestrator_decision").instruction 
+        instruction = state.get("planner_decision").instruction 
         latest_evidence = state.get("latest_evidence") or []
 
         prompt = render_prompt(
@@ -46,6 +47,6 @@ class ISATeamLeadNode(LLMGraphNode):
         return {
             "team_lead_decision": response,
             "messages": [AIMessage(content=self._create_message(response))],
-            "last_action": "TEAM_LEAD_ROUTE",
+            "last_action": WorkflowAction.TEAM_LEAD_ROUTE,
         }
 

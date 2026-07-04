@@ -11,3 +11,5 @@ class Task(BaseModel):
 
 class TaskList(BaseModel):
     tasks: list[Task]
+
+    #TODO: Not sure this file should be here since it is very specific to the ISA extraction workflow. Should it be moved to a more specific location in the codebase?

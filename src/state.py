@@ -4,6 +4,7 @@ from typing import TypedDict, Annotated, List, Dict
 
 from langchain.messages import AnyMessage
 from langchain_core.documents import Document
+from src.graphs.types.Action import WorkflowAction
 from src.graphs.types.NextStep import NextStep
 
 from src.task import Task
@@ -22,8 +23,6 @@ from src.graphs.types.DTOs.SampleDTO import SampleDTO
 from src.graphs.types.DTOs.MaterialDTO import MaterialDTO
 from src.graphs.types.DTOs.DataDTO import DataFileDTO
 
-#TODO: this state is specific for the ISA extraction workflow. Should there be a more general state type for other workflows? Is there a better way to do this?
-
 
 class ISAExtractionState(TypedDict):
     """Extended state for staged workflow: overview -> decomposition -> planner loop."""
@@ -31,13 +30,8 @@ class ISAExtractionState(TypedDict):
     # Document to extract from
     document: Document | List[Document]
 
-    # The latest decision from the orchestrator
-    orchestrator_decision: NextStep | None
-
-    #TODO: remove state fields that are not used.
-
-    # Evidence per query
-    #evidence: dict[str, list[str]]
+    # The latest decision from the planner
+    planner_decision: NextStep | None
 
     # The latest retrieved evidence
     latest_evidence: list[str] | None
@@ -60,9 +54,8 @@ class ISAExtractionState(TypedDict):
     # Message tracing
     messages: Annotated[list[AnyMessage], operator.add]
 
-    # The latest executed node/action in the planner loop
-    # Values: "SEARCH_DOCUMENT" | "UPDATE_DRAFT" | "VALIDATE" | "TASK_PROGRESS" | None
-    last_action: str | None
+    # The latest executed workflow action/event in the planner loop
+    last_action: WorkflowAction | None
 
     # Team lead routing decision object
     team_lead_decision: TeamLeadDecision | None

@@ -11,7 +11,7 @@ def routing_function(state: ISAExtractionState) -> str:
     Using explicit enum mapping avoids brittle string matching that can
     silently fail to route when labels change or differ in whitespace/casing.
     """
-    decision = state.get("orchestrator_decision")
+    decision = state.get("planner_decision")
     if decision is None or getattr(decision, "action", None) is None:
         # Fallback to planner loop if we somehow have no decision
         return GraphComponentId.PLANNER_AGENT.value

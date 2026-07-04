@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 
 from src.graphs.nodes.base_node import LLMGraphNode
 from src.graphs.types.Node import GraphComponentId
-from src.graphs.types.Action import Action
+from src.graphs.types.Action import Action, WorkflowAction
 from src.graphs.types.NextStep import NextStep, NextStepLLM
 from src.graphs.utils import trimmed_messages
 from src.state import ISAExtractionState
@@ -90,7 +90,7 @@ class PlannerNode(LLMGraphNode):
         "Decides next action based on the current state"
 
         # Deterministic pre-checks (guardrails) before calling the LLM
-        last_action = (state.get("last_action") or "").upper()
+        last_action = state.get("last_action")
         tasks_done = self._all_tasks_completed(state)
 
         # 0) If all tasks are completed → STOP (END)
@@ -98,15 +98,15 @@ class PlannerNode(LLMGraphNode):
             response = NextStep(action=Action.STOP, instruction=None, query=None, k=None, rationale="guardrail: all tasks completed → END")
             return {
                 "messages": trimmed_messages(state, [self._create_planner_message(response)]),
-                "orchestrator_decision": response
+                "planner_decision": response
             }
 
         #After UPDATE_DRAFT → Next task
-        if last_action == "UPDATE_DRAFT":
+        if last_action == WorkflowAction.UPDATE_DRAFT:
             response = NextStep(action=Action.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: next task after update")
             return {
                 "messages": trimmed_messages(state, [self._create_planner_message(response)]),
-                "orchestrator_decision": response
+                "planner_decision": response
             }
 
         # Otherwise, call LLM to analyze state and decide next step
@@ -155,6 +155,7 @@ class PlannerNode(LLMGraphNode):
         messages = [SystemMessage(content=self.system_prompt), SystemMessage(content=self.policy_prompt), HumanMessage(content=prompt)]
 
         # LLM returns NextStepLLM; translate to internal NextStep for state
+        #TODO: show that the response is an object of type NextStepLLM and not just a string. Is there a better way to do this? Should I use a different method to parse the LLM response into a structured object?
         response_llm = self.model.invoke(messages)
 
         #TODO: why is wrapping in NextStepLLM necessary? Can I just return the LLM response directly? Is there a better way to do this?
@@ -164,5 +165,5 @@ class PlannerNode(LLMGraphNode):
         # Emit only the new planner message
         return {
             "messages": [self._create_planner_message(response_internal)],
-            "orchestrator_decision": response_internal
+            "planner_decision": response_internal
         }

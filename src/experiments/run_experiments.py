@@ -18,8 +18,11 @@ def _load_setup_from_file(setup_file: Path) -> ExperimentSetup:
     setup = loaded["EXPERIMENT_SETUP"]
     return setup
 
+#TODO: ISA extraction workflow should be refactored to be more modular and allow for easier experimentation. For example, the workflow should be able to accept different node configurations and model names without requiring changes to the core workflow code.
+
 
 def run_experiment_variant(setup: ExperimentSetup, document_path: Path) -> str:
+    #TODO: refactor so that document path is passed only once
     """Run one extraction experiment from a declarative setup."""
     initial_state = create_initial_state(str(document_path))
     app = ISAExtractionWorkflowBuilder(
@@ -53,6 +56,7 @@ def collect_experiments() -> list[ExperimentSetup]:
 
 
 def main() -> None:
+    #TODO: refactor so that document is passed in the main file and not hardcoded in the experiments runner
     """Run all configured ISA extraction comparison experiments."""
     document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf"
 

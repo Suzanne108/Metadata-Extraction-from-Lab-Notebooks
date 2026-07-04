@@ -11,6 +11,7 @@ from isatools.isajson import ISAJSONEncoder
 from isatools.model import Investigation
 
 from src.graphs.nodes.base_node import DeterministicGraphNode
+from src.graphs.types.Action import WorkflowAction
 from src.graphs.types.Node import GraphComponentId
 from src.state import ISAExtractionState
 
@@ -189,6 +190,6 @@ class InvestigationExportNode(DeterministicGraphNode):
             msg = f"NODE: INVESTIGATION_EXPORT; status=error; {e} (see console)"
 
         return {
-            "last_action": "EXPORTED",
+            "last_action": WorkflowAction.EXPORTED,
             "messages": [AIMessage(content=msg)],
         }

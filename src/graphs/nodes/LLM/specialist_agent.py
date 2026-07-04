@@ -5,6 +5,7 @@ from langchain_openai import ChatOpenAI
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
 
 from src.graphs.nodes.base_node import LLMGraphNode
+from src.graphs.types.Action import WorkflowAction
 from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
 from src.graphs.utils import ensure_dto_uid_and_register
@@ -164,7 +165,7 @@ class SpecialistAgentNode(LLMGraphNode):
             AIMessage(content=f"Created or updated {self.dto_state_key}"),
         ]
         # Signal to planner guardrails that a draft update just occurred
-        updates["last_action"] = "UPDATE_DRAFT"
+        updates["last_action"] = WorkflowAction.UPDATE_DRAFT
 
         return updates
 

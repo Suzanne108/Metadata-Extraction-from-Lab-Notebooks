@@ -4,6 +4,7 @@ from src.graphs.types.Node import GraphComponentId
 
 from src.experiments.experiment_setup import ExperimentSetup
 
+#TODO: make sure there is a default model configuration defined to avoid duplicated code
 
 # Keep models fixed to isolate planner system-prompt effect.
 NODE_MODEL_NAMES: dict[str, str] = {

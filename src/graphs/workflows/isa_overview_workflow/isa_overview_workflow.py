@@ -79,7 +79,7 @@ def run_isa_overview_workflow(output_path: Path | None = None) -> Path:
     # input document, only on the ISA abstract model PDF it loads internally.
     initial_state: ISAExtractionState = {
         "document": None,
-        "orchestrator_decision": None,
+        "planner_decision": None,
         "isa_mental_model": "",
         "document_overview": "",
         "tasks": [],
