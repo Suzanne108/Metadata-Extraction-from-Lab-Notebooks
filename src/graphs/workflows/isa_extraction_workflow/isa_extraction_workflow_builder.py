@@ -11,7 +11,7 @@ from src.graphs.nodes.routing_function import routing_function, team_lead_routin
 from src.graphs.nodes.LLM.assembly_advisor import AssemblyAdvisorNode
 from src.graphs.nodes.deterministic.investigation_export import InvestigationExportNode
 from src.state import ISAExtractionState
-from src.prompts.registry import PromptRegistry
+from src.model import get_chat_model
 from src.prompts.renderer import render_prompt
 from src.graphs.nodes.deterministic.task_progress import TaskProgressNode
 from src.graphs.types.NextStep import NextStepLLM
@@ -20,264 +20,276 @@ from src.task import TaskList
 from src.graphs.nodes.LLM.isa_team_lead import ISATeamLeadNode
 from src.graphs.nodes.LLM.specialist_agent import SpecialistAgentNode
 from src.graphs.types.TeamLeadDecision import TeamLeadDecision
-from src.graphs.types.DTOs.InvestigationDTO import InvestigationDTO
-from src.graphs.types.DTOs.StudyDTO import StudyDTO
-from src.graphs.types.DTOs.AssayDTO import AssayDTO
-from src.graphs.types.DTOs.ProcessDTO import ProcessDTO
-from src.graphs.types.DTOs.ProtocolDTO import ProtocolDTO
-from src.graphs.types.DTOs.FactorDTO import FactorDTO
-from src.graphs.types.DTOs.SourceDTO import SourceDTO
-from src.graphs.types.DTOs.SampleDTO import SampleDTO
-from src.graphs.types.DTOs.MaterialDTO import MaterialDTO
-from src.graphs.types.DTOs.DataDTO import DataFileDTO
+from src.graphs.workflows.isa_extraction_workflow.node_prompt_config import (
+    DEFAULT_NODE_PROMPT_CONFIGS,
+    SPECIALIST_NODE_CONFIGS,
+)
 
-#TODO: does this config need so many parameters? Can we simplify it? For example, the dto_state_key is already in the dto_cls, and the agent_label is just a human-readable version of the node type. Maybe we can just use a single config that maps Node to DTO class, and derive
+class ISAExtractionWorkflowBuilder:
+    """Builder object for configuring and creating the ISA extraction graph workflow."""
 
-SPECIALIST_NODE_CONFIGS: list[tuple[GraphComponentId, Any, str, str, str]] = [
-    (GraphComponentId.INVESTIGATION_CREATOR, InvestigationDTO, "investigation_specialist", "dto_investigation", "INVESTIGATION_AGENT"),
-    (GraphComponentId.STUDY_CREATOR, StudyDTO, "study_specialist", "dto_study", "STUDY_AGENT"),
-    (GraphComponentId.ASSAY_CREATOR, AssayDTO, "assay_specialist", "dto_assay", "ASSAY_AGENT"),
-    (GraphComponentId.PROCESS_CREATOR, ProcessDTO, "process_specialist", "dto_process", "PROCESS_AGENT"),
-    (GraphComponentId.PROTOCOL_CREATOR, ProtocolDTO, "protocol_specialist", "dto_protocol", "PROTOCOL_AGENT"),
-    (GraphComponentId.FACTOR_CREATOR, FactorDTO, "factor_specialist", "dto_factor", "FACTOR_AGENT"),
-    (GraphComponentId.SOURCE_CREATOR, SourceDTO, "source_specialist", "dto_source", "SOURCE_AGENT"),
-    (GraphComponentId.SAMPLE_CREATOR, SampleDTO, "sample_specialist", "dto_sample", "SAMPLE_AGENT"),
-    (GraphComponentId.MATERIAL_CREATOR, MaterialDTO, "material_specialist", "dto_material", "MATERIAL_AGENT"),
-    (GraphComponentId.DATAFILE_CREATOR, DataFileDTO, "datafile_specialist", "dto_data", "DATAFILE_AGENT"),
-]
+    def __init__(
+        self,
+        document_path: str | None = None,
+        *,
+        node_models: dict[str, Any] | None = None,
+        node_model_names: dict[str, str] | None = None,
+        default_model: Any | None = None,
+        default_model_name: str | None = None,
+        node_prompt_configs: dict[str, dict[str, str]] | None = None,
+        context: WorkflowContext | None = None,
+    ) -> None:
+        self.context = context or WorkflowContext.for_isa_extraction(document_path=document_path)
+        self.registry = self.context.prompt_registry
+        self.node_models = node_models or {}
+        self.node_model_names = node_model_names or {}
+        self.default_model = default_model
+        self.default_model_name = default_model_name
+        self.node_prompt_configs = node_prompt_configs or {}
+        self._model_cache_by_name: dict[str, Any] = {}
 
-def _resolve_node_model(
-    context: WorkflowContext,
-    node_models: dict[str, Any],
-    node_name: str,
-    default_model: Any | None,
-) -> Any:
-    """Resolve model for a specific node with client override precedence."""
-    if node_name in node_models:
-        return node_models[node_name]
-    if default_model is not None:
-        return default_model
-    return context.provider_registry.get_chat_model()
+    def with_node_models(self, node_models: dict[str, Any]) -> "ISAExtractionWorkflowBuilder":
+        """Override explicit per-node model objects."""
+        self.node_models = node_models
+        return self
 
+    def with_node_model_names(self, node_model_names: dict[str, str]) -> "ISAExtractionWorkflowBuilder":
+        """Override per-node model names."""
+        self.node_model_names = node_model_names
+        return self
 
-def build_planner_node(registry: PromptRegistry, model: Any):
-    """Create the planner node with structured output and prompts."""
-    model_planner = model.with_structured_output(NextStepLLM)
-    planner_system_prompt = render_prompt(registry.get_prompt("planner", "v5-system"), {})
-    planner_policy_prompt = render_prompt(registry.get_prompt("planner", "v3-policy"), {})
-    return PlannerNode(model=model_planner, system_prompt=planner_system_prompt, policy_prompt=planner_policy_prompt)
+    def with_node_prompt_configs(self, node_prompt_configs: dict[str, dict[str, str]]) -> "ISAExtractionWorkflowBuilder":
+        """Override per-node prompt settings."""
+        self.node_prompt_configs = node_prompt_configs
+        return self
 
-def build_doc_overview_node(registry: PromptRegistry, model: Any):
-    """Create ISA overview and document overview nodes with their prompts."""
-    model_llm = model
+    def _resolve_prompt_config(self, node_name: str) -> dict[str, str]:
+        base_config = dict(DEFAULT_NODE_PROMPT_CONFIGS.get(node_name, {}))
+        base_config.update(self.node_prompt_configs.get(node_name, {}))
+        return base_config
 
-    # Document Overview
-    doc_overview_system = render_prompt(registry.get_prompt("document_overview", "v1-system"), {})
-    doc_overview_infer = registry.get_prompt("document_overview", "v1-inference")
-    isa_mental_model_path = Path.cwd() / "instructions" / "isa_mental_model.txt"
-    doc_overview_node = DocumentOverviewNode(
-        model=model_llm,
-        system_prompt=doc_overview_system,
-        inference_prompt_template=doc_overview_infer,
-        isa_mental_model_path=isa_mental_model_path,
-    )
+    def _resolve_prompt_key(self, node_name: str) -> str:
+        prompt_config = self._resolve_prompt_config(node_name)
+        configured_prompt_key = prompt_config.get("prompt_key")
+        if not configured_prompt_key:
+            raise KeyError(f"No prompt_key configured for node '{node_name}'.")
+        return configured_prompt_key
 
-    return doc_overview_node
+    def _render_system_prompt(self, node_name: str) -> str:
+        prompt_config = self._resolve_prompt_config(node_name)
+        prompt_name = self._resolve_prompt_key(node_name)
+        version = prompt_config.get("system_prompt_version", "v1-system")
+        return render_prompt(self.registry.get_prompt(prompt_name, version), {})
 
+    def _get_inference_prompt(self, node_name: str):
+        prompt_config = self._resolve_prompt_config(node_name)
+        prompt_name = self._resolve_prompt_key(node_name)
+        version = prompt_config.get("inference_prompt_version", "v1-inference")
+        return self.registry.get_prompt(prompt_name, version)
 
-def build_task_decomposer_node(registry: PromptRegistry, model: Any):
-    """Create the task decomposer node using a dedicated structured-output model."""
-    task_decomp_system = render_prompt(registry.get_prompt("task_decomposer", "v1-system"), {})
-    task_decomp_infer = registry.get_prompt("task_decomposer", "v1-inference")
-    model_task_decomposer = model.with_structured_output(TaskList)
-    return TaskDecomposerNode(model=model_task_decomposer, system_prompt=task_decomp_system, inference_prompt_template=task_decomp_infer)
+    def _render_policy_prompt(self, node_name: str) -> str:
+        prompt_config = self._resolve_prompt_config(node_name)
+        prompt_name = self._resolve_prompt_key(node_name)
+        version = prompt_config.get("policy_prompt_version", "v3-policy")
+        return render_prompt(self.registry.get_prompt(prompt_name, version), {})
 
+    def _model_from_name(self, model_name: str) -> Any:
+        if model_name not in self._model_cache_by_name:
+            self._model_cache_by_name[model_name] = get_chat_model(model_name=model_name)
+        return self._model_cache_by_name[model_name]
 
-def build_team_lead_node(registry: PromptRegistry, model: Any):
-    """Create ISA creation team lead node with prompts."""
-    model = model.with_structured_output(TeamLeadDecision)
-    system_prompt = render_prompt(registry.get_prompt("isa_team_lead", "v1-system"), {})
-    infer_prompt = registry.get_prompt("isa_team_lead", "v1-inference")
+    def _resolve_node_model(self, node_name: str) -> Any:
+        if node_name in self.node_models:
+            return self.node_models[node_name]
+        if node_name in self.node_model_names:
+            return self._model_from_name(self.node_model_names[node_name])
+        if self.default_model is not None:
+            return self.default_model
+        if self.default_model_name is not None:
+            return self._model_from_name(self.default_model_name)
+        return self.context.provider_registry.get_chat_model()
 
-    return ISATeamLeadNode(model=model, system_prompt=system_prompt, inference_prompt_template=infer_prompt)
+    def _build_planner_node(self) -> PlannerNode:
+        node_name = GraphComponentId.PLANNER_AGENT.value
+        model_planner = self._resolve_node_model(node_name).with_structured_output(NextStepLLM)
+        planner_system_prompt = self._render_system_prompt(node_name)
+        planner_policy_prompt = self._render_policy_prompt(node_name)
+        return PlannerNode(model=model_planner, system_prompt=planner_system_prompt, policy_prompt=planner_policy_prompt)
 
-
-def build_specialist_node(
-    registry: PromptRegistry,
-    model: Any,
-    dto_cls,
-    prompt_key: str,
-    dto_state_key: str,
-    agent_label: str,
-):
-    """Generic builder for specialist agent nodes.
-
-    Args:
-        registry: Prompt registry instance
-        dto_cls: Pydantic DTO class for structured output
-        prompt_key: subfolder key in prompts (e.g., "assay_specialist")
-        dto_state_key: state key to store the resulting DTO (e.g., "dto_assay")
-        agent_label: human-friendly label for logging (e.g., "ASSAY_AGENT")
-    """
-    model = model.with_structured_output(dto_cls)
-    system_prompt = render_prompt(registry.get_prompt(prompt_key, "v1-system"), {})
-    infer_prompt = registry.get_prompt(prompt_key, "v1-inference")
-    return SpecialistAgentNode(
-        model=model,
-        system_prompt=system_prompt,
-        inference_prompt_template=infer_prompt,
-        dto_state_key=dto_state_key,
-        agent_label=agent_label,
-    )
-
-
-def build_specialist_nodes(
-    registry: PromptRegistry,
-    context: WorkflowContext,
-    node_models: dict[str, Any],
-    default_model: Any | None,
-) -> dict[str, Any]:
-    """Build all specialist nodes from a single declarative config list."""
-    specialist_nodes: dict[str, Any] = {}
-    for node_type, dto_cls, prompt_key, dto_state_key, agent_label in SPECIALIST_NODE_CONFIGS:
-        model_for_node = _resolve_node_model(
-            context=context,
-            node_models=node_models,
-            node_name=node_type.value,
-            default_model=default_model,
+    def _build_doc_overview_node(self) -> DocumentOverviewNode:
+        node_name = GraphComponentId.DOC_OVERVIEW.value
+        isa_mental_model_path = Path.cwd() / "instructions" / "isa_mental_model.txt"
+        return DocumentOverviewNode(
+            model=self._resolve_node_model(node_name),
+            system_prompt=self._render_system_prompt(node_name),
+            inference_prompt_template=self._get_inference_prompt(node_name),
+            isa_mental_model_path=isa_mental_model_path,
         )
-        specialist_nodes[node_type.value] = build_specialist_node(
-            registry=registry,
-            model=model_for_node,
-            dto_cls=dto_cls,
-            prompt_key=prompt_key,
+
+    def _build_task_decomposer_node(self) -> TaskDecomposerNode:
+        node_name = GraphComponentId.TASK_DECOMPOSER.value
+        model_task_decomposer = self._resolve_node_model(node_name).with_structured_output(TaskList)
+        return TaskDecomposerNode(
+            model=model_task_decomposer,
+            system_prompt=self._render_system_prompt(node_name),
+            inference_prompt_template=self._get_inference_prompt(node_name),
+        )
+
+    def _build_team_lead_node(self) -> ISATeamLeadNode:
+        node_name = GraphComponentId.TEAM_LEAD.value
+        model = self._resolve_node_model(node_name).with_structured_output(TeamLeadDecision)
+        return ISATeamLeadNode(
+            model=model,
+            system_prompt=self._render_system_prompt(node_name),
+            inference_prompt_template=self._get_inference_prompt(node_name),
+        )
+
+    def _build_specialist_node(
+        self,
+        node_name: str,
+        dto_cls: Any,
+        dto_state_key: str,
+        agent_label: str,
+    ) -> SpecialistAgentNode:
+        model = self._resolve_node_model(node_name).with_structured_output(dto_cls)
+        return SpecialistAgentNode(
+            model=model,
+            system_prompt=self._render_system_prompt(node_name),
+            inference_prompt_template=self._get_inference_prompt(node_name),
             dto_state_key=dto_state_key,
             agent_label=agent_label,
         )
-    return specialist_nodes
 
-def build_export_node():
-    """Build the simple export node that writes ISA-JSON."""
-    return InvestigationExportNode()
+    def _build_specialist_nodes(self) -> dict[str, Any]:
+        specialist_nodes: dict[str, Any] = {}
+        for specialist_node_id, dto_cls, _, dto_state_key, agent_label in SPECIALIST_NODE_CONFIGS:
+            specialist_nodes[specialist_node_id.value] = self._build_specialist_node(
+                node_name=specialist_node_id.value,
+                dto_cls=dto_cls,
+                dto_state_key=dto_state_key,
+                agent_label=agent_label,
+            )
+        return specialist_nodes
 
-def build_assembly_advisor_node(registry: PromptRegistry, model: Any):
-    """Create the assembly advisor node with its prompts."""
-    system_prompt = render_prompt(registry.get_prompt("assembly_advisor", "v1-system"), {})
-    infer_prompt = registry.get_prompt("assembly_advisor", "v1-inference")
-    return AssemblyAdvisorNode(model=model, system_prompt=system_prompt, inference_prompt_template=infer_prompt)
+    @staticmethod
+    def _build_export_node() -> InvestigationExportNode:
+        return InvestigationExportNode()
 
-def build_graph(nodes: dict[str, Any], context: WorkflowContext) -> StateGraph:
-    """Add nodes, wire edges, and compile the graph using shared context."""
-    linear_edges = [
-        ("START", GraphComponentId.DOC_OVERVIEW.value),
-        (GraphComponentId.DOC_OVERVIEW.value, GraphComponentId.TASK_DECOMPOSER.value),
-        (GraphComponentId.TASK_DECOMPOSER.value, GraphComponentId.TASK_PROGRESS.value),
-        (GraphComponentId.TASK_PROGRESS.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.INVESTIGATION_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.STUDY_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.ASSAY_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.PROCESS_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.PROTOCOL_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.FACTOR_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.SOURCE_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.SAMPLE_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.MATERIAL_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.DATAFILE_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.SEARCH_DOCUMENT.value, GraphComponentId.PLANNER_AGENT.value),
-        (GraphComponentId.ASSEMBLY_ADVISOR.value, GraphComponentId.EXPORT.value),
-        (GraphComponentId.EXPORT.value, "END"),
-    ]
+    def _build_assembly_advisor_node(self) -> AssemblyAdvisorNode:
+        node_name = GraphComponentId.ASSEMBLY_ADVISOR.value
+        return AssemblyAdvisorNode(
+            model=self._resolve_node_model(node_name),
+            system_prompt=self._render_system_prompt(node_name),
+            inference_prompt_template=self._get_inference_prompt(node_name),
+        )
 
-    conditional_routes = [
-        ConditionalRoute(
-            source=GraphComponentId.PLANNER_AGENT.value,
-            route_fn=routing_function,
-            route_map={
-                GraphComponentId.TEAM_LEAD.value: GraphComponentId.TEAM_LEAD.value,
-                GraphComponentId.SEARCH_DOCUMENT.value: GraphComponentId.SEARCH_DOCUMENT.value,
-                GraphComponentId.TASK_PROGRESS.value: GraphComponentId.TASK_PROGRESS.value,
-                GraphComponentId.ASSEMBLY_ADVISOR.value: GraphComponentId.ASSEMBLY_ADVISOR.value,
-            },
-        ),
-        ConditionalRoute(
-            source=GraphComponentId.TEAM_LEAD.value,
-            route_fn=team_lead_routing,
-            route_map={
-                GraphComponentId.INVESTIGATION_CREATOR.value: GraphComponentId.INVESTIGATION_CREATOR.value,
-                GraphComponentId.STUDY_CREATOR.value: GraphComponentId.STUDY_CREATOR.value,
-                GraphComponentId.ASSAY_CREATOR.value: GraphComponentId.ASSAY_CREATOR.value,
-                GraphComponentId.PROCESS_CREATOR.value: GraphComponentId.PROCESS_CREATOR.value,
-                GraphComponentId.PROTOCOL_CREATOR.value: GraphComponentId.PROTOCOL_CREATOR.value,
-                GraphComponentId.FACTOR_CREATOR.value: GraphComponentId.FACTOR_CREATOR.value,
-                GraphComponentId.SOURCE_CREATOR.value: GraphComponentId.SOURCE_CREATOR.value,
-                GraphComponentId.SAMPLE_CREATOR.value: GraphComponentId.SAMPLE_CREATOR.value,
-                GraphComponentId.MATERIAL_CREATOR.value: GraphComponentId.MATERIAL_CREATOR.value,
-                GraphComponentId.DATAFILE_CREATOR.value: GraphComponentId.DATAFILE_CREATOR.value,
-                GraphComponentId.PLANNER_AGENT.value: GraphComponentId.PLANNER_AGENT.value,
-            },
-        ),
-    ]
+    def _build_nodes(self) -> dict[str, Any]:
+        nodes: dict[str, Any] = {
+            GraphComponentId.DOC_OVERVIEW.value: self._build_doc_overview_node(),
+            GraphComponentId.TASK_DECOMPOSER.value: self._build_task_decomposer_node(),
+            GraphComponentId.TASK_PROGRESS.value: TaskProgressNode(),
+            GraphComponentId.PLANNER_AGENT.value: self._build_planner_node(),
+            GraphComponentId.SEARCH_DOCUMENT.value: self.context.search_document_caller,
+            GraphComponentId.TEAM_LEAD.value: self._build_team_lead_node(),
+            GraphComponentId.ASSEMBLY_ADVISOR.value: self._build_assembly_advisor_node(),
+            GraphComponentId.EXPORT.value: self._build_export_node(),
+        }
+        nodes.update(self._build_specialist_nodes())
+        return nodes
 
-    builder = WorkflowGraphBuilder(ISAExtractionState, checkpointer=context.checkpointer)
-    return (
-        builder
-        .add_nodes(nodes)
-        .add_edges(linear_edges)
-        .add_conditional_routes(conditional_routes)
-        .compile()
-    )
+    @staticmethod
+    def _linear_edges() -> list[tuple[str, str]]:
+        return [
+            ("START", GraphComponentId.DOC_OVERVIEW.value),
+            (GraphComponentId.DOC_OVERVIEW.value, GraphComponentId.TASK_DECOMPOSER.value),
+            (GraphComponentId.TASK_DECOMPOSER.value, GraphComponentId.TASK_PROGRESS.value),
+            (GraphComponentId.TASK_PROGRESS.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.INVESTIGATION_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.STUDY_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.ASSAY_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.PROCESS_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.PROTOCOL_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.FACTOR_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.SOURCE_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.SAMPLE_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.MATERIAL_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.DATAFILE_CREATOR.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.SEARCH_DOCUMENT.value, GraphComponentId.PLANNER_AGENT.value),
+            (GraphComponentId.ASSEMBLY_ADVISOR.value, GraphComponentId.EXPORT.value),
+            (GraphComponentId.EXPORT.value, "END"),
+        ]
+
+    @staticmethod
+    def _conditional_routes() -> list[ConditionalRoute]:
+        return [
+            ConditionalRoute(
+                source=GraphComponentId.PLANNER_AGENT.value,
+                route_fn=routing_function,
+                route_map={
+                    GraphComponentId.TEAM_LEAD.value: GraphComponentId.TEAM_LEAD.value,
+                    GraphComponentId.SEARCH_DOCUMENT.value: GraphComponentId.SEARCH_DOCUMENT.value,
+                    GraphComponentId.TASK_PROGRESS.value: GraphComponentId.TASK_PROGRESS.value,
+                    GraphComponentId.ASSEMBLY_ADVISOR.value: GraphComponentId.ASSEMBLY_ADVISOR.value,
+                },
+            ),
+            ConditionalRoute(
+                source=GraphComponentId.TEAM_LEAD.value,
+                route_fn=team_lead_routing,
+                route_map={
+                    GraphComponentId.INVESTIGATION_CREATOR.value: GraphComponentId.INVESTIGATION_CREATOR.value,
+                    GraphComponentId.STUDY_CREATOR.value: GraphComponentId.STUDY_CREATOR.value,
+                    GraphComponentId.ASSAY_CREATOR.value: GraphComponentId.ASSAY_CREATOR.value,
+                    GraphComponentId.PROCESS_CREATOR.value: GraphComponentId.PROCESS_CREATOR.value,
+                    GraphComponentId.PROTOCOL_CREATOR.value: GraphComponentId.PROTOCOL_CREATOR.value,
+                    GraphComponentId.FACTOR_CREATOR.value: GraphComponentId.FACTOR_CREATOR.value,
+                    GraphComponentId.SOURCE_CREATOR.value: GraphComponentId.SOURCE_CREATOR.value,
+                    GraphComponentId.SAMPLE_CREATOR.value: GraphComponentId.SAMPLE_CREATOR.value,
+                    GraphComponentId.MATERIAL_CREATOR.value: GraphComponentId.MATERIAL_CREATOR.value,
+                    GraphComponentId.DATAFILE_CREATOR.value: GraphComponentId.DATAFILE_CREATOR.value,
+                    GraphComponentId.PLANNER_AGENT.value: GraphComponentId.PLANNER_AGENT.value,
+                },
+            ),
+        ]
+
+    def _compile_graph(self, nodes: dict[str, Any]) -> StateGraph:
+        graph_builder = WorkflowGraphBuilder(ISAExtractionState, checkpointer=self.context.checkpointer)
+        return (
+            graph_builder
+            .add_nodes(nodes)
+            .add_edges(self._linear_edges())
+            .add_conditional_routes(self._conditional_routes())
+            .compile()
+        )
+
+    def build(self) -> StateGraph:
+        """Build and compile the configured ISA extraction workflow."""
+        nodes = self._build_nodes()
+        return self._compile_graph(nodes)
 
 def create_stateful_graph_workflow(
     document_path: str = None,
     node_models: dict[str, Any] | None = None,
+    node_model_names: dict[str, str] | None = None,
+    node_prompt_configs: dict[str, dict[str, str]] | None = None,
     default_model: Any | None = None,
+    default_model_name: str | None = None,
 ) -> StateGraph:
-    """Create and compile ISA extraction workflow with optional per-node model overrides.
+    """Create and compile ISA extraction workflow with optional per-node overrides.
 
     Args:
         document_path: Path to the source document.
-        node_models: Mapping of node name to model instance. Keys should match
-            values from ``Node.<X>.value``.
-        default_model: Optional fallback model for nodes not present in
-            ``node_models``.
+        node_models: Mapping of node name to model object.
+        node_model_names: Mapping of node name to model name.
+        node_prompt_configs: Mapping of node name to prompt configuration.
+        default_model: Optional fallback model object.
+        default_model_name: Optional fallback model name.
     """
-    context = WorkflowContext.for_isa_extraction(document_path=document_path)
-    registry = context.prompt_registry
-    resolved_node_models = node_models or {}
-
-    nodes: dict[str, Any] = {
-        GraphComponentId.DOC_OVERVIEW.value: build_doc_overview_node(
-            registry,
-            _resolve_node_model(context, resolved_node_models, GraphComponentId.DOC_OVERVIEW.value, default_model),
-        ),
-        GraphComponentId.TASK_DECOMPOSER.value: build_task_decomposer_node(
-            registry,
-            _resolve_node_model(context, resolved_node_models, GraphComponentId.TASK_DECOMPOSER.value, default_model),
-        ),
-        GraphComponentId.TASK_PROGRESS.value: TaskProgressNode(),
-        GraphComponentId.PLANNER_AGENT.value: build_planner_node(
-            registry,
-            _resolve_node_model(context, resolved_node_models, GraphComponentId.PLANNER_AGENT.value, default_model),
-        ),
-        GraphComponentId.SEARCH_DOCUMENT.value: context.search_document_caller,
-        GraphComponentId.TEAM_LEAD.value: build_team_lead_node(
-            registry,
-            _resolve_node_model(context, resolved_node_models, GraphComponentId.TEAM_LEAD.value, default_model),
-        ),
-        GraphComponentId.ASSEMBLY_ADVISOR.value: build_assembly_advisor_node(
-            registry,
-            _resolve_node_model(context, resolved_node_models, GraphComponentId.ASSEMBLY_ADVISOR.value, default_model),
-        ),
-        GraphComponentId.EXPORT.value: build_export_node(),
-    }
-    nodes.update(
-        build_specialist_nodes(
-            registry=registry,
-            context=context,
-            node_models=resolved_node_models,
-            default_model=default_model,
-        )
-    )
-
-    return build_graph(nodes=nodes, context=context)
+    return ISAExtractionWorkflowBuilder(
+        document_path=document_path,
+        node_models=node_models,
+        node_model_names=node_model_names,
+        default_model=default_model,
+        default_model_name=default_model_name,
+        node_prompt_configs=node_prompt_configs,
+    ).build()
 
