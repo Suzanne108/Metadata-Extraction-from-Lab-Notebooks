@@ -13,4 +13,4 @@ class ExperimentSetup:
     node_models: dict[GraphComponentId, Any] = field(default_factory=dict)
     default_model: Any | None = None
     node_prompt_configs: dict[GraphComponentId, dict[str, str]] = field(default_factory=dict)
-    #TODO: add which workflow is being used
+

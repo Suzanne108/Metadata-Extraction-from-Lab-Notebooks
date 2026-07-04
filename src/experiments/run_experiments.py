@@ -42,21 +42,17 @@ def run_experiment_variant(setup: ExperimentSetup, document_path: Path) -> str:
 
 
 def collect_experiments() -> list[ExperimentSetup]:
-    """Collect experiment setups to run in order."""
-    model_comparison_dir = Path(__file__).parent / "isa_model_comparison"
+    """Collect prompt-comparison experiment setups to run in order."""
     planner_prompt_comparison_dir = Path(__file__).parent / "planner_prompt_comparison"
 
     return [
-        _load_setup_from_file(model_comparison_dir / "setup_all_mini.py"),
-        _load_setup_from_file(model_comparison_dir / "setup_all_nano.py"),
-        _load_setup_from_file(model_comparison_dir / "setup_hybrid.py"),
         _load_setup_from_file(planner_prompt_comparison_dir / "setup_planner_system_v1.py"),
         _load_setup_from_file(planner_prompt_comparison_dir / "setup_planner_system_v2.py"),
     ]
 
 
 def main() -> None:
-    """Run all configured ISA extraction comparison experiments."""
+    """Run the configured ISA extraction prompt-comparison experiments."""
     document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf"
 
     for setup in collect_experiments():

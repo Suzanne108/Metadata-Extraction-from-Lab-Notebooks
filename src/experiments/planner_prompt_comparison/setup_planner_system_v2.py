@@ -5,8 +5,6 @@ from src.model import get_chat_model
 
 from src.experiments.experiment_setup import ExperimentSetup
 
-
-# Keep models fixed to isolate planner system-prompt effect.
 DEFAULT_MODEL = get_chat_model(model_name="gpt-5-mini")
 
 NODE_PROMPT_CONFIGS: dict[GraphComponentId, dict[str, str]] = {
