@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 
 class BaseGraphNode(ABC):
@@ -27,11 +27,13 @@ class LLMGraphNode(BaseGraphNode):
         model: Any,
         system_prompt: str,
         inference_prompt_template: Any,
+        policy_prompt: Optional[str] = None,
     ) -> None:
         super().__init__(node_id)
         self.model = model
         self.system_prompt = system_prompt
         self.inference_prompt_template = inference_prompt_template
+        self.policy_prompt = policy_prompt
 
 
 class DeterministicGraphNode(BaseGraphNode):

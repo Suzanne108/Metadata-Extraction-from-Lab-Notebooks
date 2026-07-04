@@ -1,5 +1,5 @@
 from src.state import ISAExtractionState
-from src.graphs.types.Action import Action
+from src.graphs.types.Action import WorkflowAction
 from src.graphs.types.Node import GraphComponentId
 
 #TODO: give the routing functions a more descriptive name, e.g. "planner_routing_function" and "team_lead_routing_function" to avoid confusion with the generic "routing_function" in the graph builder
@@ -16,16 +16,16 @@ def routing_function(state: ISAExtractionState) -> str:
         # Fallback to planner loop if we somehow have no decision
         return GraphComponentId.PLANNER_AGENT.value
 
-    action: Action = decision.action
+    action: WorkflowAction = decision.action
 
-    if action == Action.UPDATE_DRAFT:
+    if action == WorkflowAction.UPDATE_DRAFT:
         # Route to team lead for specialized creation routing
         return GraphComponentId.TEAM_LEAD.value
-    if action == Action.SEARCH_DOCUMENT:
+    if action == WorkflowAction.SEARCH_DOCUMENT:
         return GraphComponentId.SEARCH_DOCUMENT.value
-    if action == Action.FINISH_TASK:
+    if action == WorkflowAction.FINISH_TASK:
         return GraphComponentId.TASK_PROGRESS.value
-    if action == Action.STOP:
+    if action == WorkflowAction.STOP:
         # When planner signals completion, first run assembly advice before assembly/export
         return GraphComponentId.ASSEMBLY_ADVISOR.value
 

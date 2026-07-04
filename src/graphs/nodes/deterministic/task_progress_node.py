@@ -1,7 +1,7 @@
 from typing import List, Optional
 from langchain.messages import AIMessage
 from src.state import ISAExtractionState
-from src.graphs.types.Action import Action, WorkflowAction
+from src.graphs.types.Action import WorkflowAction
 from src.graphs.nodes.base_node import DeterministicGraphNode
 from src.graphs.types.Node import GraphComponentId
 from src.task import Task
@@ -46,7 +46,7 @@ class TaskProgressNode(DeterministicGraphNode):
 
         # Set current task completed and next task in progress
 
-        if isinstance(last_action, Action) and last_action == Action.FINISH_TASK:
+        if isinstance(last_action, WorkflowAction) and last_action == WorkflowAction.FINISH_TASK:
 
             if 0 <= idx < len(tasks) and tasks[idx].status != "completed":
                 set_status(idx, "completed")

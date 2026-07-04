@@ -3,25 +3,25 @@ from pathlib import Path
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from src.graphs.nodes.LLM.document_overview import create_document_overview
-from src.graphs.nodes.LLM.task_decomposer import create_task_decomposer
+from src.graphs.nodes.LLM.document_overview_node import create_document_overview
+from src.graphs.nodes.LLM.task_decomposer_node import create_task_decomposer
 from src.model import get_chat_model
-from src.graphs.nodes.LLM.planner import create_planner
+from src.graphs.nodes.LLM.planner_node import create_planner
 from src.tools import create_doc_getter, create_schema_getter
 from src.graphs.utils import index_document
 from src.graphs.nodes.routing_function import routing_function, team_lead_routing
-from src.graphs.nodes.LLM.assembly_advisor import create_assembly_advisor
-from src.graphs.nodes.deterministic.investigation_export import create_investigation_export_node
+from src.graphs.nodes.LLM.assembly_advisor_node import create_assembly_advisor
+from src.graphs.nodes.deterministic.investigation_export_node import create_investigation_export_node
 from src.state import ISAExtractionState
 from src.graphs.nodes.deterministic.tool_callers import create_search_document_caller, validate
 from src.prompts.registry import PromptRegistry
 from src.prompts.renderer import render_prompt
-from src.graphs.nodes.deterministic.task_progress import create_task_progressor
+from src.graphs.nodes.deterministic.task_progress_node import create_task_progressor
 from src.graphs.types.NextStep import NextStepLLM
 from src.graphs.types.Node import Node
 from src.task import TaskList
-from src.graphs.nodes.LLM.isa_team_lead import create_isa_team_lead
-from src.graphs.nodes.LLM.specialist_agent import create_specialist_agent
+from src.graphs.nodes.LLM.isa_team_lead_node import create_isa_team_lead
+from src.graphs.nodes.LLM.specialist_agent_node import create_specialist_agent
 from src.graphs.types.TeamLeadDecision import TeamLeadDecision
 from src.graphs.types.DTOs.InvestigationDTO import InvestigationDTO
 from src.graphs.types.DTOs.StudyDTO import StudyDTO

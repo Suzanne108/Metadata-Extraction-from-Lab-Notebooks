@@ -2,6 +2,7 @@
 
 from src.prompts.base import Prompt
 
+
 def render_prompt(prompt: Prompt, inputs: dict) -> str:
     """Renders a prompt with the given inputs."""
     

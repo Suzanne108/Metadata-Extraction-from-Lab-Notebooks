@@ -5,31 +5,30 @@ from langchain_openai import ChatOpenAI
 
 from src.graphs.nodes.base_node import LLMGraphNode
 from src.graphs.types.Node import GraphComponentId
-from src.graphs.types.Action import Action, WorkflowAction
+from src.graphs.types.Action import WorkflowAction
 from src.graphs.types.NextStep import NextStep, NextStepLLM
 from src.graphs.utils import trimmed_messages
 from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
-from src.prompts.registry import PromptRegistry
-
-#TODO: refactor so that the inference prompt can be given as argument
 
 class PlannerNode(LLMGraphNode):
     """LLM node that decides the next workflow action."""
 
-    def __init__(self, model: ChatOpenAI, system_prompt: str, policy_prompt: str) -> None:
+    def __init__(self, model: ChatOpenAI, system_prompt: str, inference_prompt_template: str, policy_prompt: str) -> None:
         super().__init__(
             node_id=GraphComponentId.PLANNER_AGENT.value,
             model=model,
             system_prompt=system_prompt,
-            inference_prompt_template=None,
+            inference_prompt_template=inference_prompt_template,
+            policy_prompt=policy_prompt,
         )
-        self.policy_prompt = policy_prompt
+    
+    #TODO: Keep this method but rename to something more descriptive
 
     def _to_internal(self, r) -> NextStep:
         if isinstance(r, NextStepLLM):
             return NextStep(
-                action=Action[r.action.name],
+                action=WorkflowAction[r.action.name],
                 instruction=r.instruction,
                 query=r.query,
                 k=r.k,
@@ -80,67 +79,75 @@ class PlannerNode(LLMGraphNode):
         if not chunks:
             return "None."
         return "\n".join(chunks)
-        
-    #TODO: rename method to something more descriptive, like "plan_next_step" or "decide_next_action"
 
-    #TODO: break up this method into smaller helper methods for clarity and maintainability. It's currently too long and complex.
-
-    def run(self, state: ISAExtractionState ) -> dict:
-        "Decides next action based on the current state"
-
-        # Deterministic pre-checks (guardrails) before calling the LLM
+    def _apply_deterministic_guardrails(self, state: ISAExtractionState) -> dict | None:
+        """Return an immediate planner decision when pre-LLM guardrails apply."""
         last_action = state.get("last_action")
         tasks_done = self._all_tasks_completed(state)
 
         # 0) If all tasks are completed → STOP (END)
         if tasks_done:
-            response = NextStep(action=Action.STOP, instruction=None, query=None, k=None, rationale="guardrail: all tasks completed → END")
+            response = NextStep(action=WorkflowAction.STOP, instruction=None, query=None, k=None, rationale="guardrail: all tasks completed → END")
             return {
                 "messages": trimmed_messages(state, [self._create_planner_message(response)]),
-                "planner_decision": response
+                "planner_decision": response,
             }
 
-        #After UPDATE_DRAFT → Next task
+        # After UPDATE_DRAFT → Next task
         if last_action == WorkflowAction.UPDATE_DRAFT:
-            response = NextStep(action=Action.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: next task after update")
+            response = NextStep(action=WorkflowAction.FINISH_TASK, instruction=None, query=None, k=None, rationale="guardrail: next task after update")
             return {
                 "messages": trimmed_messages(state, [self._create_planner_message(response)]),
-                "planner_decision": response
+                "planner_decision": response,
             }
 
-        # Otherwise, call LLM to analyze state and decide next step
-        
+        return None
 
+    def _collect_previous_messages(self, state: ISAExtractionState) -> str:
+        """Collect and serialize recent messages for planner context."""
         previous_messages = []
 
         # Get the previous 3 messages for context
         for msg in state.get("messages", [])[-3:]:
             if isinstance(msg, ToolMessage):
-                previous_messages.append(f"Message type: ToolMessage, Content: {msg.content}, tool_id: {msg.tool_call_id}" )
+                previous_messages.append(f"Message type: ToolMessage, Content: {msg.content}, tool_id: {msg.tool_call_id}")
             elif isinstance(msg, AIMessage):
-                previous_messages.append(f"Message type: AIMessage, Content: {msg.content}" )
-        
-        previous_messages = previous_messages or ["No previous messages."]
-        previous_messages = json.dumps(previous_messages, indent=2)
+                previous_messages.append(f"Message type: AIMessage, Content: {msg.content}")
 
-        # Determine current task string for prompt
+        previous_messages = previous_messages or ["No previous messages."]
+        return json.dumps(previous_messages, indent=2)
+
+    def _determine_current_task(self, state: ISAExtractionState) -> str:
+        """Serialize the current task for planner prompt context."""
         tasks = state.get("tasks") or []
         idx = state.get("current_task_index")
         if isinstance(idx, int) and 0 <= idx < len(tasks):
             t = tasks[idx]
             current_task = {"kind": t.kind, "target": t.target, "instruction": t.instruction, "status": t.status}
-            current_task_str = json.dumps(current_task, indent=2)
-        else:
-            current_task_str = "None"
+            return json.dumps(current_task, indent=2)
+        return "None"
 
-        # Prepare latest evidence (last retrieved document chunks) for the planner
+    def _prepare_latest_evidence(self, state: ISAExtractionState) -> tuple[str, str]:
+        """Prepare latest evidence text and query values for planner prompt context."""
         raw_latest_evidence = state.get("latest_evidence") or []
         latest_evidence_str = self._format_latest_evidence_for_planner(raw_latest_evidence)
         latest_evidence_query = state.get("latest_evidence_query") or "None."
+        return latest_evidence_str, latest_evidence_query
 
-        # Call LLM to analyze state and decide next step
-        registry = PromptRegistry.get_instance()
-        prompt_template = registry.get_prompt("planner", "v4-inference")
+    def run(self, state: ISAExtractionState ) -> dict:
+        "Decides next action based on the current state"
+
+        # Deterministic guardrails before calling the LLM
+        guardrail_update = self._apply_deterministic_guardrails(state)
+        if guardrail_update is not None:
+            return guardrail_update
+
+        previous_messages = self._collect_previous_messages(state)
+        current_task_str = self._determine_current_task(state)
+        latest_evidence_str, latest_evidence_query = self._prepare_latest_evidence(state)
+
+        # Inject the collected context into the planner prompt template
+        prompt_template = self.inference_prompt_template
         prompt = render_prompt(
             prompt_template,
             {
@@ -153,15 +160,13 @@ class PlannerNode(LLMGraphNode):
 
         messages = [SystemMessage(content=self.system_prompt), SystemMessage(content=self.policy_prompt), HumanMessage(content=prompt)]
 
-        # LLM returns NextStepLLM; translate to internal NextStep for state
-        #TODO: show that the response is an object of type NextStepLLM and not just a string. Is there a better way to do this? Should I use a different method to parse the LLM response into a structured object?
+        # Call LLM to analyze state and decide next step
         response_llm = self.model.invoke(messages)
-
-        #TODO: why is wrapping in NextStepLLM necessary? Can I just return the LLM response directly? Is there a better way to do this?
-
+        
+        # Transform the LLM response into the internal NextStep representation
         response_internal = self._to_internal(response_llm)
 
-        # Emit only the new planner message
+        # Update state with the planner decision and the corresponding message
         return {
             "messages": [self._create_planner_message(response_internal)],
             "planner_decision": response_internal
