@@ -1,13 +1,12 @@
-from src.graphs.utils import index_document
+from src.document_processing import DocumentManager
 from src.state import ISAExtractionState
 
-#TODO: refactor initial state and final state into some kind of larger class that can also run and build the workflow
+def create_initial_state(document_manager: DocumentManager) -> ISAExtractionState:
+    """Return the initial workflow state from a preloaded document manager."""
+    if document_manager.document is None:
+        raise ValueError("document_manager must load a document before creating the initial state.")
 
-
-def create_initial_state(document_path: str) -> ISAExtractionState:
-    """Index the document and return the initial workflow state."""
-    doc_manager = index_document(document_path)
-    document = doc_manager.document
+    document = document_manager.document
 
     return ISAExtractionState(
         document=document,

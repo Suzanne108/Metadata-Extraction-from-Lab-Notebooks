@@ -26,8 +26,3 @@ class GraphComponentId(Enum):
     PLANNER_AGENT = "planner agent"
     EXPORT = "investigation export"
     STOP = "END"
-
-
-# Backwards compatibility alias. New code should import GraphComponentId.
-Node = GraphComponentId
-#TODO: remove the Node alias and update all references to GraphComponentId in the codebase.

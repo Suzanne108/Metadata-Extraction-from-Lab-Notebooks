@@ -43,17 +43,6 @@ class PromptRegistry:
         return cls._instance
 
     @classmethod
-    def _load_from_directory(cls, root: Path) -> None:
-        """Load all prompts from the specified directory."""
-        for path in root.rglob("*.yaml"):
-            try:
-                prompt = cls._load_prompt(path)
-                cls._register(prompt)
-            except Exception as e:
-                # Provide clear feedback about which file failed to load.
-                print(f"[PromptRegistry] Skipping invalid YAML at {path}: {e}")
-
-    @classmethod
     def _register(cls, prompt: Prompt) -> None:
         """Register a new prompt."""
         key = (prompt.name, prompt.version)
@@ -66,6 +55,17 @@ class PromptRegistry:
         if key not in cls._prompts:
             raise KeyError(f"Prompt '{name}' with version '{version}' not found.")
         return cls._prompts[key]
+    
+    @classmethod
+    def _load_from_directory(cls, root: Path) -> None:
+        """Load all prompts from the specified directory."""
+        for path in root.rglob("*.yaml"):
+            try:
+                prompt = cls._load_prompt(path)
+                cls._register(prompt)
+            except Exception as e:
+                # Provide clear feedback about which file failed to load.
+                print(f"[PromptRegistry] Skipping invalid YAML at {path}: {e}")
 
     @staticmethod
     def _load_prompt(path: Path) -> Prompt:

@@ -1,11 +1,9 @@
 from src.state import ISAExtractionState
 from src.graphs.types.Action import WorkflowAction
-from src.graphs.types.Node import GraphComponentId
-
-#TODO: give the routing functions a more descriptive name, e.g. "planner_routing_function" and "team_lead_routing_function" to avoid confusion with the generic "routing_function" in the graph builder
+from src.graphs.types.GraphComponentId import GraphComponentId
 
 #TODO: move this file to another folder
-def routing_function(state: ISAExtractionState) -> str:
+def planner_routing_function(state: ISAExtractionState) -> str:
     """Map the planner's enum action to a concrete graph node label.
 
     Using explicit enum mapping avoids brittle string matching that can

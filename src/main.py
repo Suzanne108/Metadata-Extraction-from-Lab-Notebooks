@@ -1,15 +1,10 @@
 from src.graphs.workflows.workflow_runner import run_graph_workflow
 from src.graphs.workflows.isa_extraction_workflow.initial_state import create_initial_state
-from src.graphs.workflows.isa_extraction_workflow.isa_extraction_workflow_builder import create_stateful_graph_workflow
+from src.graphs.workflows.isa_extraction_workflow.isa_extraction_workflow_builder import ISAExtractionWorkflowBuilder
 from src.graphs.workflows.isa_extraction_workflow.final_state import handle_final_state
 from src.graphs.workflows.isa_overview_workflow.isa_overview_workflow import run_isa_overview_workflow
-from src.graphs.utils import visualise_graph
+from src.graphs.utils import index_document
 from pathlib import Path
-
-from src.plotting_results.category_assessment_plots import (
-    plot_results_grouped,
-    plot_results_stacked,
-)
 
 
 
@@ -21,19 +16,18 @@ def generate_isa_mental_model(output_path: Path | None = None) -> Path:
     """
 
     path = run_isa_overview_workflow(output_path)
-    #TODO: remove unnecessary print statemtents
     print(f"ISA overview written to: {path}")
     return path
 
 if __name__ == "__main__":
 
     document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf" 
+    document_manager = index_document(str(document_path))
 
-    #TODO: change that document_path should only be injected once
     #TODO: add options to tweak the document embedding strategy
 
-    initial_state = create_initial_state(str(document_path))
-    app = create_stateful_graph_workflow(str(document_path))
+    initial_state = create_initial_state(document_manager)
+    app = ISAExtractionWorkflowBuilder(document_manager=document_manager).build()
     app, config, run_id = run_graph_workflow(
         app=app,
         initial_state=initial_state,

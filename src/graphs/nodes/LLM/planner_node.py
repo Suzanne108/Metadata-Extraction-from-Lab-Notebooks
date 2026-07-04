@@ -4,7 +4,7 @@ from langchain.messages import HumanMessage, AIMessage, ToolMessage, SystemMessa
 from langchain_openai import ChatOpenAI
 
 from src.graphs.nodes.base_node import LLMGraphNode
-from src.graphs.types.Node import GraphComponentId
+from src.graphs.types.GraphComponentId import GraphComponentId
 from src.graphs.types.Action import WorkflowAction
 from src.graphs.types.NextStep import NextStep, NextStepLLM
 from src.graphs.utils import trimmed_messages
@@ -23,7 +23,6 @@ class PlannerNode(LLMGraphNode):
             policy_prompt=policy_prompt,
         )
     
-    #TODO: Keep this method but rename to something more descriptive
 
     def _to_internal(self, r) -> NextStep:
         if isinstance(r, NextStepLLM):
@@ -85,7 +84,7 @@ class PlannerNode(LLMGraphNode):
         last_action = state.get("last_action")
         tasks_done = self._all_tasks_completed(state)
 
-        # 0) If all tasks are completed → STOP (END)
+        # If all tasks are completed → STOP
         if tasks_done:
             response = NextStep(action=WorkflowAction.STOP, instruction=None, query=None, k=None, rationale="guardrail: all tasks completed → END")
             return {

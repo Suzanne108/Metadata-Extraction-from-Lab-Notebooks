@@ -12,8 +12,6 @@ class ConditionalRoute:
 
     source: str
     route_fn: Callable[[dict], str]
-    route_map: dict[str, str]
-
 
 class WorkflowGraphBuilder:
     """Small helper around StateGraph to standardize build flow."""
@@ -36,7 +34,7 @@ class WorkflowGraphBuilder:
 
     def add_conditional_routes(self, routes: list[ConditionalRoute]) -> "WorkflowGraphBuilder":
         for route in routes:
-            self._graph.add_conditional_edges(route.source, route.route_fn, route.route_map)
+            self._graph.add_conditional_edges(route.source, route.route_fn)
         return self
 
     def compile(self) -> Any:

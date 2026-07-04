@@ -20,44 +20,47 @@ class SpecialistAgentNode(LLMGraphNode):
     - model: chat model configured with structured output for the target DTO type
     - system_prompt: the specialist's system instruction
     - inference_prompt_template: the specialist's inference prompt (expects instruction, latest_evidence)
-    - dto_state_key: state key to store the resulting DTO (e.g., "dto_investigation", "dto_study")
-    - agent_label: human-friendly label for logs/messages (e.g., "INVESTIGATION_AGENT", "ASSAY_AGENT")
+    - base_name: canonical specialist name used to derive state/log identifiers (e.g., "investigation", "assay")
     """
 
-    # Mapping from dto state key to context variables and the registry keys to load
-    SPECIALIST_CONTEXT_BY_DTO_KEY: dict[str, dict[str, str]] = {
+    DTO_STATE_KEY_OVERRIDES = {
+        "datafile": "dto_data",
+    }
+
+    # Mapping from specialist base name to context variables and registry keys to load
+    SPECIALIST_CONTEXT_BY_BASE_NAME: dict[str, dict[str, str]] = {
         # Higher-level should know potential lower-level references
-        "dto_investigation": {
+        "investigation": {
         },
-        "dto_study": {
+        "study": {
         },
-        "dto_assay": {
+        "assay": {
             "existing_assays": "registry_assays",
             "existing_datafiles": "registry_data",
             "existing_samples": "registry_samples",
             "existing_materials": "registry_materials",
             "existing_processes": "registry_processes",
         },
-        "dto_process": {
+        "process": {
             "existing_processes": "registry_processes",
             "existing_protocols": "registry_protocols",
             "existing_materials": "registry_materials",
             "existing_samples": "registry_samples",
             "existing_sources": "registry_sources",
         },
-        "dto_protocol": {
+        "protocol": {
             "existing_protocols": "registry_protocols",
         },
-        "dto_factor": {
+        "factor": {
             "existing_factors": "registry_factors",
         },
-        "dto_source": {
+        "source": {
         },
-        "dto_sample": {
+        "sample": {
         },
-        "dto_material": {
+        "material": {
         },
-        "dto_data": {
+        "datafile": {
             "existing_datafiles": "registry_data",
             "existing_processes": "registry_processes",
         },
@@ -68,17 +71,18 @@ class SpecialistAgentNode(LLMGraphNode):
         model: ChatOpenAI,
         system_prompt: str,
         inference_prompt_template,
-        dto_state_key: str,
-        agent_label: str,
+        base_name: str,
     ) -> None:
+        self.base_name = base_name
+        self.dto_state_key = self.DTO_STATE_KEY_OVERRIDES.get(base_name, f"dto_{base_name}")
+        self.agent_label = f"{base_name.upper()}_AGENT"
+
         super().__init__(
-            node_id=agent_label,
+            node_id=self.agent_label,
             model=model,
             system_prompt=system_prompt,
             inference_prompt_template=inference_prompt_template,
         )
-        self.dto_state_key = dto_state_key
-        self.agent_label = agent_label
 
     def _dump_registry(self, reg: dict) -> str:
         """Helper to convert registry of ISA objects to JSON string for prompt context. Handles non-serializable objects."""
@@ -135,7 +139,7 @@ class SpecialistAgentNode(LLMGraphNode):
         raw_latest_evidence = state.get("latest_evidence") or []
 
         # Build context variables of relevant existing objects
-        context_map = self.SPECIALIST_CONTEXT_BY_DTO_KEY.get(self.dto_state_key, {})
+        context_map = self.SPECIALIST_CONTEXT_BY_BASE_NAME.get(self.base_name, {})
         context_vars: dict[str, str] = {}
         for var_name, reg_key in context_map.items():
             reg = state.get(reg_key) or {}
