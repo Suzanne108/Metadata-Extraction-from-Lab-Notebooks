@@ -25,7 +25,7 @@ from src.graphs.types.DTOs.DataDTO import DataFileDTO
 
 
 class ISAExtractionState(TypedDict):
-    """Extended state for staged workflow: overview -> decomposition -> planner loop."""
+    """State used for the ISA extraction workflow, passed between nodes in the graph."""
 
     # Document to extract from
     document: Document | List[Document]
@@ -35,13 +35,7 @@ class ISAExtractionState(TypedDict):
 
     # The latest retrieved evidence
     latest_evidence: list[str] | None
-
-    # The query string used to retrieve the latest_evidence
-    latest_evidence_query: str | None
-
-    # Orientation: plain-text ISA mental model
-    isa_mental_model: str | None
-
+    
     # Overview: plain-text structured overview with numbered entity IDs
     document_overview: str | None
 
@@ -56,9 +50,6 @@ class ISAExtractionState(TypedDict):
 
     # The latest executed workflow action/event in the planner loop
     last_action: WorkflowAction | None
-
-    # Team lead routing decision object
-    team_lead_decision: TeamLeadDecision | None
     
     # Registries of ISA objects by ID, always one investigation
     dto_investigation: InvestigationDTO | None
@@ -72,3 +63,13 @@ class ISAExtractionState(TypedDict):
     registry_sources: Dict[str, SourceDTO] | None
     registry_samples: Dict[str, SampleDTO] | None
     registry_materials: Dict[str, MaterialDTO] | None
+
+    # The query string used to retrieve the latest_evidence
+    latest_evidence_query: str | None
+
+    # Orientation: plain-text ISA mental model
+    isa_mental_model: str | None
+
+    # Team lead routing decision object
+    team_lead_decision: TeamLeadDecision | None
+
