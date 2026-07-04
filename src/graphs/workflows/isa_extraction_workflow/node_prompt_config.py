@@ -42,8 +42,8 @@ def build_default_node_prompt_configs() -> dict[str, dict[str, str]]:
         },
         GraphComponentId.PLANNER_AGENT.value: {
             "prompt_key": "planner",
-            "system_prompt_version": "v5-system",
-            "policy_prompt_version": "v3-policy",
+            "system_prompt_version": "v1-system",
+            "policy_prompt_version": "v1-policy",
         },
         GraphComponentId.TEAM_LEAD.value: {
             "prompt_key": "isa_team_lead",

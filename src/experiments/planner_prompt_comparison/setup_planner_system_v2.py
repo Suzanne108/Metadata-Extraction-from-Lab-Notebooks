@@ -1,4 +1,4 @@
-"""Planner-prompt setup: fixed models, planner system prompt version v6-system."""
+"""Planner-prompt setup: fixed models, planner system prompt version v2-system."""
 
 from src.graphs.types.Node import GraphComponentId
 
@@ -27,15 +27,15 @@ NODE_MODEL_NAMES: dict[str, str] = {
 NODE_PROMPT_CONFIGS: dict[str, dict[str, str]] = {
     GraphComponentId.PLANNER_AGENT.value: {
         "prompt_key": "planner",
-        "system_prompt_version": "v6-system",
-        "policy_prompt_version": "v3-policy",
+        "system_prompt_version": "v2-system",
+        "policy_prompt_version": "v1-policy",
     },
 }
 
 
 EXPERIMENT_SETUP = ExperimentSetup(
-    variant_name="planner-system-v6",
-    description="Planner prompt comparison: fixed models, planner system=v6-system, policy=v3-policy.",
+    variant_name="planner-system-v2",
+    description="Planner prompt comparison: fixed models, planner system=v2-system, policy=v1-policy.",
     node_model_names=NODE_MODEL_NAMES,
     node_prompt_configs=NODE_PROMPT_CONFIGS,
 )

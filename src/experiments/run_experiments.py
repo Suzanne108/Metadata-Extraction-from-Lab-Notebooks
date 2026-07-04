@@ -50,8 +50,8 @@ def collect_experiments() -> list[ExperimentSetup]:
         _load_setup_from_file(model_comparison_dir / "setup_all_mini.py"),
         _load_setup_from_file(model_comparison_dir / "setup_all_nano.py"),
         _load_setup_from_file(model_comparison_dir / "setup_hybrid.py"),
-        _load_setup_from_file(planner_prompt_comparison_dir / "setup_planner_system_v5.py"),
-        _load_setup_from_file(planner_prompt_comparison_dir / "setup_planner_system_v6.py"),
+        _load_setup_from_file(planner_prompt_comparison_dir / "setup_planner_system_v1.py"),
+        _load_setup_from_file(planner_prompt_comparison_dir / "setup_planner_system_v2.py"),
     ]
 
 

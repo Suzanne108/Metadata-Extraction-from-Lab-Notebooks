@@ -52,8 +52,8 @@ def create_workflow_dependencies(document_path: str = None):
 def build_planner_node(registry: PromptRegistry):
     """Create the planner node with structured output and prompts."""
     model_planner = get_chat_model().with_structured_output(NextStepLLM)
-    planner_system_prompt = render_prompt(registry.get_prompt("planner", "v5-system"), {})
-    planner_policy_prompt = render_prompt(registry.get_prompt("planner", "v3-policy"), {})
+    planner_system_prompt = render_prompt(registry.get_prompt("planner", "v1-system"), {})
+    planner_policy_prompt = render_prompt(registry.get_prompt("planner", "v1-policy"), {})
     return create_planner(model_planner, planner_system_prompt, planner_policy_prompt)
 
 def build_doc_overview_node(registry: PromptRegistry):

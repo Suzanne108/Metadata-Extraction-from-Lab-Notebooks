@@ -91,7 +91,7 @@ class ISAExtractionWorkflowBuilder:
     def _render_policy_prompt(self, node_name: str) -> str:
         prompt_config = self._resolve_prompt_config(node_name)
         prompt_name = self._resolve_prompt_key(node_name)
-        version = prompt_config.get("policy_prompt_version", "v3-policy")
+        version = prompt_config.get("policy_prompt_version", "v1-policy")
         return render_prompt(self.registry.get_prompt(prompt_name, version), {})
 
     def _model_from_name(self, model_name: str) -> Any:
@@ -114,8 +114,14 @@ class ISAExtractionWorkflowBuilder:
         node_name = GraphComponentId.PLANNER_AGENT.value
         model_planner = self._resolve_node_model(node_name).with_structured_output(NextStepLLM)
         planner_system_prompt = self._render_system_prompt(node_name)
+        planner_inference_prompt = self._get_inference_prompt(node_name)
         planner_policy_prompt = self._render_policy_prompt(node_name)
-        return PlannerNode(model=model_planner, system_prompt=planner_system_prompt, policy_prompt=planner_policy_prompt)
+        return PlannerNode(
+            model=model_planner,
+            system_prompt=planner_system_prompt,
+            inference_prompt_template=planner_inference_prompt,
+            policy_prompt=planner_policy_prompt,
+        )
 
     def _build_doc_overview_node(self) -> DocumentOverviewNode:
         node_name = GraphComponentId.DOC_OVERVIEW.value
