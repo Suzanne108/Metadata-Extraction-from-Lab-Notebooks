@@ -4,8 +4,8 @@ from langgraph.graph import StateGraph
 
 from src.graphs.core import WorkflowGraphBuilder
 from src.state import ISAExtractionState
-from src.graphs.types.Node import Node
-from src.graphs.nodes.isa_overview import create_isa_overview
+from src.graphs.types.Node import GraphComponentId
+from src.graphs.nodes.LLM.isa_overview import ISAOverviewNode
 from src.tools import create_schema_getter
 from src.prompts.registry import PromptRegistry
 from src.prompts.renderer import render_prompt
@@ -29,7 +29,13 @@ def build_isa_overview_node(registry: PromptRegistry, schema_getter_tools):
 
     isa_overview_doc = doc_manager.load_pdf(path)
 
-    return create_isa_overview(model, schema_getter_tools, isa_overview_system, isa_overview_infer, isa_overview_doc)
+    return ISAOverviewNode(
+        model=model,
+        schema_getter_tools=schema_getter_tools,
+        system_prompt=isa_overview_system,
+        inference_prompt_template=isa_overview_infer,
+        isa_overview_doc=isa_overview_doc,
+    )
 
 
 def create_isa_overview_graph() -> StateGraph:
@@ -45,10 +51,10 @@ def create_isa_overview_graph() -> StateGraph:
     registry = PromptRegistry.get_instance()
     isa_overview_node = build_isa_overview_node(registry, schema_getter_tools)
 
-    nodes = {Node.ISA_OVERVIEW.value: isa_overview_node}
+    nodes = {GraphComponentId.ISA_OVERVIEW.value: isa_overview_node}
     edges = [
-        ("START", Node.ISA_OVERVIEW.value),
-        (Node.ISA_OVERVIEW.value, "END"),
+        ("START", GraphComponentId.ISA_OVERVIEW.value),
+        (GraphComponentId.ISA_OVERVIEW.value, "END"),
     ]
 
     # No checkpointer needed here; we only care about the final state.

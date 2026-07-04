@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 from langgraph.checkpoint.memory import MemorySaver
 
-from src.graphs.nodes.tool_callers import create_search_document_caller
+from src.graphs.nodes.deterministic.tool_callers import SearchDocumentCallerNode
 from src.graphs.utils import index_document
 from src.model import get_chat_model, get_embedding_model
 from src.prompts.registry import PromptRegistry
@@ -71,7 +71,7 @@ class WorkflowContext:
         """Create the standard dependency context for ISA extraction workflows."""
         doc_manager = index_document(document_path=document_path)
         search_document_tool = create_doc_getter(doc_manager)
-        search_document_caller = create_search_document_caller(search_document_tool)
+        search_document_caller = SearchDocumentCallerNode(search_document_tool)
         schema_getter_tools = create_schema_getter()
 
         return cls(

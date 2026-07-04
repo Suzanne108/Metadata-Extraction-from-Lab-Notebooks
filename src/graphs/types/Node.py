@@ -3,7 +3,7 @@
 from enum import Enum
 
 
-class Node(Enum):
+class GraphComponentId(Enum):
     ISA_OVERVIEW = "ISA overview"
     DOC_OVERVIEW = "document overview"
     TASK_DECOMPOSER = "task planning"
@@ -23,7 +23,11 @@ class Node(Enum):
     MATERIAL_CREATOR = "material creator"
     DATAFILE_CREATOR = "datafile creator"
     ASSEMBLY_ADVISOR = "assembly advisor"
-    ASSEMBLY = "deterministic assembly"
     PLANNER_AGENT = "planner agent"
     EXPORT = "investigation export"
     STOP = "END"
+
+
+# Backwards compatibility alias. New code should import GraphComponentId.
+Node = GraphComponentId
+#TODO: remove the Node alias and update all references to GraphComponentId in the codebase.

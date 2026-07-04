@@ -3,11 +3,18 @@ from src.tools import validate_ISA_schema
 from langchain.messages import ToolMessage
 from langchain_core.tools import StructuredTool
 import json as _json
+from src.graphs.nodes.base_node import DeterministicGraphNode
+from src.graphs.types.Node import GraphComponentId
     
 
-def create_search_document_caller(search_document_tool: StructuredTool):
+class SearchDocumentCallerNode(DeterministicGraphNode):
+    """Deterministic node that executes semantic search against the document index."""
 
-    def search_document_caller(state: ISAExtractionState):
+    def __init__(self, search_document_tool: StructuredTool) -> None:
+        super().__init__(node_id=GraphComponentId.SEARCH_DOCUMENT.value)
+        self.search_document_tool = search_document_tool
+
+    def run(self, state: ISAExtractionState):
         if not state['orchestrator_decision'].query:
             return{
                 "messages": [ToolMessage(content="No query provided for document search.", tool_call_id="search_document")]
@@ -15,10 +22,10 @@ def create_search_document_caller(search_document_tool: StructuredTool):
         query = state['orchestrator_decision'].query
 
         # Call the search document tool
-        if hasattr(search_document_tool, "run"):
-            results = search_document_tool.run(query, k=state['orchestrator_decision'].k or 1)
-        elif callable(search_document_tool):
-            results = search_document_tool(query, k=state['orchestrator_decision'].k or 1)
+        if hasattr(self.search_document_tool, "run"):
+            results = self.search_document_tool.run(query, k=state['orchestrator_decision'].k or 1)
+        elif callable(self.search_document_tool):
+            results = self.search_document_tool(query, k=state['orchestrator_decision'].k or 1)
         else:
             raise TypeError("search_document_tool is not callable and has no .run() method")
         try:
@@ -38,8 +45,9 @@ def create_search_document_caller(search_document_tool: StructuredTool):
             "messages": [ToolMessage(content=message, tool_call_id="search_document")],
             "last_action": "SEARCH_DOCUMENT"
         }
-    
-    return search_document_caller
+
+#TODO: not sure the name of this file is appropriate
+#TODO: not sure the validate function should be here
 
 def validate(state: ISAExtractionState):
     draft_isa_metadata = state.get("draft_isa_metadata")

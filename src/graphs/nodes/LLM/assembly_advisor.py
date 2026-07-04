@@ -5,12 +5,14 @@ from typing import Any
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
+from src.graphs.nodes.base_node import LLMGraphNode
+from src.graphs.types.Node import GraphComponentId
 from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
 
 
-def create_assembly_advisor(model: ChatOpenAI, system_prompt: str, inference_prompt_template) -> callable:
-    """Creates a node that proposes how to stitch DTOs into a proper ISA graph.
+class AssemblyAdvisorNode(LLMGraphNode):
+    """LLM node that proposes how to stitch DTOs into a proper ISA graph.
 
     The advisor receives:
     - The original document text
@@ -19,7 +21,15 @@ def create_assembly_advisor(model: ChatOpenAI, system_prompt: str, inference_pro
     It returns a text recommendation and writes it to `output/<doc_stem>_assembly_advice.txt`.
     """
 
-    def _document_stem(state: ISAExtractionState) -> str:
+    def __init__(self, model: ChatOpenAI, system_prompt: str, inference_prompt_template) -> None:
+        super().__init__(
+            node_id=GraphComponentId.ASSEMBLY_ADVISOR.value,
+            model=model,
+            system_prompt=system_prompt,
+            inference_prompt_template=inference_prompt_template,
+        )
+
+    def _document_stem(self, state: ISAExtractionState) -> str:
         try:
             doc = state.get("document")
             first = (doc[0] if isinstance(doc, list) and doc else doc)
@@ -31,7 +41,7 @@ def create_assembly_advisor(model: ChatOpenAI, system_prompt: str, inference_pro
             pass
         return "isa_advice"
 
-    def _dump_registry(reg: dict) -> str:
+    def _dump_registry(self, reg: dict) -> str:
         """Convert registry of DTOs to a JSON string for prompt context."""
         def _to_dict(obj: Any) -> dict:
             try:
@@ -48,7 +58,7 @@ def create_assembly_advisor(model: ChatOpenAI, system_prompt: str, inference_pro
         except (TypeError, ValueError):
             return "{}"
 
-    def _dump_single(dto: Any) -> str:
+    def _dump_single(self, dto: Any) -> str:
         if dto is None:
             return "{}"
         try:
@@ -59,7 +69,7 @@ def create_assembly_advisor(model: ChatOpenAI, system_prompt: str, inference_pro
             except (AttributeError, TypeError):
                 return "{}"
 
-    def assembly_advisor(state: ISAExtractionState) -> dict:
+    def run(self, state: ISAExtractionState) -> dict:
         # Gather full document text
         raw_doc = state.get("document")
         full_text = ""
@@ -72,20 +82,20 @@ def create_assembly_advisor(model: ChatOpenAI, system_prompt: str, inference_pro
             full_text = str(raw_doc)
 
         # Build JSON context for all registries
-        inv_json = _dump_single(state.get("dto_investigation"))
-        studies_json = _dump_registry(state.get("registry_studies") or {})
-        assays_json = _dump_registry(state.get("registry_assays") or {})
-        data_json = _dump_registry(state.get("registry_data") or {})
-        processes_json = _dump_registry(state.get("registry_processes") or {})
-        protocols_json = _dump_registry(state.get("registry_protocols") or {})
-        factors_json = _dump_registry(state.get("registry_factors") or {})
-        factor_values_json = _dump_registry(state.get("registry_factor_values") or {})
-        sources_json = _dump_registry(state.get("registry_sources") or {})
-        samples_json = _dump_registry(state.get("registry_samples") or {})
-        materials_json = _dump_registry(state.get("registry_materials") or {})
+        inv_json = self._dump_single(state.get("dto_investigation"))
+        studies_json = self._dump_registry(state.get("registry_studies") or {})
+        assays_json = self._dump_registry(state.get("registry_assays") or {})
+        data_json = self._dump_registry(state.get("registry_data") or {})
+        processes_json = self._dump_registry(state.get("registry_processes") or {})
+        protocols_json = self._dump_registry(state.get("registry_protocols") or {})
+        factors_json = self._dump_registry(state.get("registry_factors") or {})
+        factor_values_json = self._dump_registry(state.get("registry_factor_values") or {})
+        sources_json = self._dump_registry(state.get("registry_sources") or {})
+        samples_json = self._dump_registry(state.get("registry_samples") or {})
+        materials_json = self._dump_registry(state.get("registry_materials") or {})
 
         prompt = render_prompt(
-            inference_prompt_template,
+            self.inference_prompt_template,
             {
                 "document_text": full_text,
                 "investigation": inv_json,
@@ -102,13 +112,13 @@ def create_assembly_advisor(model: ChatOpenAI, system_prompt: str, inference_pro
             },
         )
 
-        messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
-        response = model.invoke(messages)
+        messages = [SystemMessage(content=self.system_prompt), HumanMessage(content=prompt)]
+        response = self.model.invoke(messages)
 
         advice_text = response.content if hasattr(response, "content") else str(response)
 
         # Persist advice to output text file
-        stem = _document_stem(state)
+        stem = self._document_stem(state)
         out_dir = Path.cwd() / "output"
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{stem}_assembly_advice.txt"
@@ -124,4 +134,3 @@ def create_assembly_advisor(model: ChatOpenAI, system_prompt: str, inference_pro
             "last_action": "ASSEMBLY_ADVICE",
         }
 
-    return assembly_advisor

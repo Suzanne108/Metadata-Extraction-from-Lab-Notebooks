@@ -2,12 +2,18 @@ from typing import List, Optional
 from langchain.messages import AIMessage
 from src.state import ISAExtractionState
 from src.graphs.types.Action import Action
+from src.graphs.nodes.base_node import DeterministicGraphNode
+from src.graphs.types.Node import GraphComponentId
 from src.task import Task
 
 
-def create_task_progressor():
-    
-    def task_progressor(state: ISAExtractionState) -> dict:
+class TaskProgressNode(DeterministicGraphNode):
+    """Deterministic node that advances the task pointer and statuses."""
+
+    def __init__(self) -> None:
+        super().__init__(node_id=GraphComponentId.TASK_PROGRESS.value)
+
+    def run(self, state: ISAExtractionState) -> dict:
         tasks: Optional[List[Task]] = state.get("tasks") or []
         new_messages: List[AIMessage] = []
         if not tasks:
@@ -59,5 +65,3 @@ def create_task_progressor():
         # Default: no state transition, echo current
         new_messages.append(AIMessage(content=f"NODE: TASK_PROGRESS; status: working; task_index: {idx}; total: {len(tasks)}; kind: {tasks[idx].kind}; target: {tasks[idx].target}"))
         return {"current_task_index": idx, "tasks": tasks, "messages": new_messages, "last_action": "TASK_PROGRESS"}
-
-    return task_progressor
