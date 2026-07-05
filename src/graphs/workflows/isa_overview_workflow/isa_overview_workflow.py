@@ -1,10 +1,11 @@
 from pathlib import Path
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import StateGraph
 
+from src.graphs.core import WorkflowGraphBuilder
 from src.state import ISAExtractionState
-from src.graphs.types.Node import Node
-from src.graphs.nodes.isa_overview import create_isa_overview
+from src.graphs.types.GraphComponentId import GraphComponentId
+from src.graphs.nodes.LLM.isa_overview_node import ISAOverviewNode
 from src.tools import create_schema_getter
 from src.prompts.registry import PromptRegistry
 from src.prompts.renderer import render_prompt
@@ -28,7 +29,13 @@ def build_isa_overview_node(registry: PromptRegistry, schema_getter_tools):
 
     isa_overview_doc = doc_manager.load_pdf(path)
 
-    return create_isa_overview(model, schema_getter_tools, isa_overview_system, isa_overview_infer, isa_overview_doc)
+    return ISAOverviewNode(
+        model=model,
+        schema_getter_tools=schema_getter_tools,
+        system_prompt=isa_overview_system,
+        inference_prompt_template=isa_overview_infer,
+        isa_overview_doc=isa_overview_doc,
+    )
 
 
 def create_isa_overview_graph() -> StateGraph:
@@ -41,17 +48,18 @@ def create_isa_overview_graph() -> StateGraph:
 
     # Reuse the same node construction as the main workflow used to do
     schema_getter_tools = create_schema_getter()
-    registry = PromptRegistry()
+    registry = PromptRegistry.get_instance()
     isa_overview_node = build_isa_overview_node(registry, schema_getter_tools)
 
-    graph = StateGraph(ISAExtractionState)
-    graph.add_node(Node.ISA_OVERVIEW.value, isa_overview_node)
+    nodes = {GraphComponentId.ISA_OVERVIEW.value: isa_overview_node}
+    edges = [
+        ("START", GraphComponentId.ISA_OVERVIEW.value),
+        (GraphComponentId.ISA_OVERVIEW.value, "END"),
+    ]
 
-    graph.add_edge(START, Node.ISA_OVERVIEW.value)
-    graph.add_edge(Node.ISA_OVERVIEW.value, END)
-
-    # No checkpointer needed here; we only care about the final state
-    return graph.compile()
+    # No checkpointer needed here; we only care about the final state.
+    builder = WorkflowGraphBuilder(ISAExtractionState)
+    return builder.add_nodes(nodes).add_edges(edges).compile()
 
 
 def run_isa_overview_workflow(output_path: Path | None = None) -> Path:
@@ -68,7 +76,7 @@ def run_isa_overview_workflow(output_path: Path | None = None) -> Path:
     # input document, only on the ISA abstract model PDF it loads internally.
     initial_state: ISAExtractionState = {
         "document": None,
-        "orchestrator_decision": None,
+        "planner_decision": None,
         "isa_mental_model": "",
         "document_overview": "",
         "tasks": [],

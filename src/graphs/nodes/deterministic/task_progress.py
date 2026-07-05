@@ -1,18 +1,24 @@
 from typing import List, Optional
 from langchain.messages import AIMessage
 from src.state import ISAExtractionState
-from src.graphs.types.Action import Action
+from src.graphs.types.Action import Action, WorkflowAction
+from src.graphs.nodes.base_node import DeterministicGraphNode
+from src.graphs.types.GraphComponentId import GraphComponentId
 from src.task import Task
 
 
-def create_task_progressor():
-    
-    def task_progressor(state: ISAExtractionState) -> dict:
+class TaskProgressNode(DeterministicGraphNode):
+    """Deterministic node that advances the task pointer and statuses."""
+
+    def __init__(self) -> None:
+        super().__init__(node_id=GraphComponentId.TASK_PROGRESS.value)
+
+    def run(self, state: ISAExtractionState) -> dict:
         tasks: Optional[List[Task]] = state.get("tasks") or []
         new_messages: List[AIMessage] = []
         if not tasks:
             new_messages.append(AIMessage(content="NODE: TASK_PROGRESS; status: no-tasks; message: No tasks available to progress."))
-            return {"messages": new_messages, "last_action": "TASK_PROGRESS"}
+            return {"messages": new_messages, "last_action": WorkflowAction.TASK_PROGRESS}
 
         idx = state.get("current_task_index")
         if idx is None:
@@ -22,7 +28,7 @@ def create_task_progressor():
         if idx < 0 or idx >= len(tasks):
             idx = next((i for i, t in enumerate(tasks) if t.status != "completed"), 0)
 
-        decision = state.get("orchestrator_decision")
+        decision = state.get("planner_decision")
         last_action = getattr(decision, "action", None)
 
         def set_status(i: int, status: str):
@@ -36,7 +42,7 @@ def create_task_progressor():
                 new_messages.append(AIMessage(content=f"NODE: TASK_PROGRESS; status: in-progress; task_index: {idx}; total: {len(tasks)}; kind: {tasks[idx].kind}; target: {tasks[idx].target}"))
             else:
                 new_messages.append(AIMessage(content=f"NODE: TASK_PROGRESS; status: continue; task_index: {idx}; total: {len(tasks)}; kind: {tasks[idx].kind}; target: {tasks[idx].target}"))
-            return {"current_task_index": idx, "tasks": tasks, "messages": new_messages, "last_action": "TASK_PROGRESS"}
+            return {"current_task_index": idx, "tasks": tasks, "messages": new_messages, "last_action": WorkflowAction.TASK_PROGRESS}
 
         # Set current task completed and next task in progress
 
@@ -51,13 +57,11 @@ def create_task_progressor():
                     if tasks[next_idx].status == "pending":
                         set_status(next_idx, "in-progress")
                     new_messages.append(AIMessage(content=f"NODE: TASK_PROGRESS; status: in-progress; task_index: {next_idx}; total: {len(tasks)}; kind: {tasks[next_idx].kind}; target: {tasks[next_idx].target}"))
-                return {"current_task_index": next_idx, "tasks": tasks, "messages": new_messages, "last_action": "TASK_PROGRESS"}
+                return {"current_task_index": next_idx, "tasks": tasks, "messages": new_messages, "last_action": WorkflowAction.TASK_PROGRESS}
 
             new_messages.append(AIMessage(content="NODE: TASK_PROGRESS; status: noop; message: Finish requested, but no active task to complete."))
-            return {"current_task_index": idx, "tasks": tasks, "messages": new_messages, "last_action": "TASK_PROGRESS"}
+            return {"current_task_index": idx, "tasks": tasks, "messages": new_messages, "last_action": WorkflowAction.TASK_PROGRESS}
 
         # Default: no state transition, echo current
         new_messages.append(AIMessage(content=f"NODE: TASK_PROGRESS; status: working; task_index: {idx}; total: {len(tasks)}; kind: {tasks[idx].kind}; target: {tasks[idx].target}"))
-        return {"current_task_index": idx, "tasks": tasks, "messages": new_messages, "last_action": "TASK_PROGRESS"}
-
-    return task_progressor
+        return {"current_task_index": idx, "tasks": tasks, "messages": new_messages, "last_action": WorkflowAction.TASK_PROGRESS}

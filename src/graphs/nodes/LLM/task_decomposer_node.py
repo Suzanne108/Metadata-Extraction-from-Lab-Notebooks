@@ -3,25 +3,36 @@ from typing import List
 from langchain_openai import ChatOpenAI
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
 
+from src.graphs.nodes.base_node import LLMGraphNode
+from src.graphs.types.GraphComponentId import GraphComponentId
 from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
 from src.task import Task
 
 
-def create_task_decomposer(model: ChatOpenAI, system_prompt: str, inference_prompt_template: str):
+class TaskDecomposerNode(LLMGraphNode):
+    """LLM node that decomposes document overview text into workflow tasks."""
 
-    def task_decomposer(state: ISAExtractionState) -> dict:
+    def __init__(self, model: ChatOpenAI, system_prompt: str, inference_prompt_template: str) -> None:
+        super().__init__(
+            node_id=GraphComponentId.TASK_DECOMPOSER.value,
+            model=model,
+            system_prompt=system_prompt,
+            inference_prompt_template=inference_prompt_template,
+        )
+
+    def run(self, state: ISAExtractionState) -> dict:
         overview_text = state.get("document_overview", "") or ""
         prompt = render_prompt(
-            inference_prompt_template,
+            self.inference_prompt_template,
             {
                 "document_overview": overview_text,
             },
         )
 
         # Model is expected to be bound with structured output at workflow construction
-        messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
-        response: List[Task] = model.invoke(messages)
+        messages = [SystemMessage(content=self.system_prompt), HumanMessage(content=prompt)]
+        response: List[Task] = self.model.invoke(messages)
 
         if response.tasks:
             lines: List[str] = [f"Planned {len(response.tasks)} tasks:"]
@@ -42,4 +53,3 @@ def create_task_decomposer(model: ChatOpenAI, system_prompt: str, inference_prom
             "messages": [AIMessage(content=message_summary)],
         }
 
-    return task_decomposer

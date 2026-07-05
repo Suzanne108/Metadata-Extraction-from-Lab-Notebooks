@@ -89,11 +89,15 @@ OPENAI_API_KEY=your_openai_api_key_here
 Edit `src/main.py` and set the path to your PDF lab journal, then run:
 
 ```python
-from src.graphs.workflows.stateful_graph_workflow import run_stateful_graph_workflow
+from src.graphs.workflows.isa_extraction_workflow.isa_extraction_workflow_builder import ISAExtractionWorkflowBuilder
+from src.graphs.workflows.isa_extraction_workflow.initial_state import create_initial_state
+from src.graphs.workflows.workflow_runner import run_graph_workflow
 from pathlib import Path
 
 document_path = Path("papers/your_journal.pdf")
-run_stateful_graph_workflow(document_path=str(document_path))
+app = ISAExtractionWorkflowBuilder(document_path=str(document_path)).build()
+initial_state = create_initial_state(str(document_path))
+run_graph_workflow(app=app, initial_state=initial_state)
 ```
 
 Run from the project root:
@@ -118,12 +122,12 @@ generate_isa_mental_model(Path("output/ISA_mental_model.txt"))
 ### Visualise the workflow graph
 
 ```python
-from src.graphs.workflows.stateful_graph_workflow import create_stateful_graph_workflow
+from src.graphs.workflows.isa_extraction_workflow.isa_extraction_workflow_builder import ISAExtractionWorkflowBuilder
 from src.graphs.utils import visualise_graph
 from pathlib import Path
 
 document_path = Path("papers/lab_journals/your_journal.pdf")
-visualise_graph(create_stateful_graph_workflow(document_path))
+visualise_graph(ISAExtractionWorkflowBuilder(document_path=str(document_path)).build())
 ```
 
 ## Output Format

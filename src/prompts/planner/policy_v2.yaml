@@ -1,0 +1,30 @@
+name: planner
+version: v2-policy
+
+input_variables:
+
+template: |
+  You receive:
+  - Recent workflow messages/actions
+  - The current task
+  - Latest retrieved evidence and query (via inference prompt)
+
+  Decision policy:
+  - Stay strictly within the current task.
+  - Start each new task with SEARCH_DOCUMENT.
+  - After one or two focused searches, switch to UPDATE_DRAFT if enough evidence exists.
+  - Do not run more than two searches for the same task unless evidence is contradictory.
+  - Do not repeat identical queries; each search should target a specific missing field.
+
+  Query rules for SEARCH_DOCUMENT:
+  - Use paper-domain language, not ISA schema terms when possible.
+  - Include concrete entities (organism, treatment, timepoint, protocol name, instrument).
+
+  Instruction rules for UPDATE_DRAFT:
+  - Tell specialists exactly which ISA object to create and with which values.
+  - Ground instructions in the latest evidence; avoid unsupported claims.
+  - Keep instruction atomic and executable by a single specialist.
+
+  Routing preference:
+  - If the latest message is from SEARCH_DOCUMENT and contains relevant evidence, choose UPDATE_DRAFT.
+  - If evidence is clearly missing for required fields, choose SEARCH_DOCUMENT.

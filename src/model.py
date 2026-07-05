@@ -7,14 +7,15 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 import os
 
-def get_chat_model():
+# TODO: this should be changed so that you can centrally for the workflow determine which components should be using which model. For example, the planner should use a different model than the specialist agents. This should be configurable in a central place, rather than hardcoded in this file.
+def get_chat_model(model_name: str = "gpt-5-nano"):
     """"Returns basic LLM model configuration."""
 
     #TODO: change this to not be dependent on the file structure
     load_dotenv(dotenv_path=Path.cwd() / ".env")
     open_ai_key = os.getenv("OPENAI_API_KEY")
 
-    return ChatOpenAI(model="gpt-5-mini", temperature=0, api_key=open_ai_key)
+    return ChatOpenAI(model=model_name, temperature=0, api_key=open_ai_key)
 
 def get_embedding_model():
     """Returns basic embedding model configuration."""
