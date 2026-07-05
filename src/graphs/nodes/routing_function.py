@@ -2,13 +2,8 @@ from src.state import ISAExtractionState
 from src.graphs.types.Action import WorkflowAction
 from src.graphs.types.GraphComponentId import GraphComponentId
 
-#TODO: move this file to another folder
 def planner_routing_function(state: ISAExtractionState) -> str:
-    """Map the planner's enum action to a concrete graph node label.
-
-    Using explicit enum mapping avoids brittle string matching that can
-    silently fail to route when labels change or differ in whitespace/casing.
-    """
+    """Map the planner's enum action to a concrete graph node label."""
     decision = state.get("planner_decision")
     if decision is None or getattr(decision, "action", None) is None:
         # Fallback to planner loop if we somehow have no decision

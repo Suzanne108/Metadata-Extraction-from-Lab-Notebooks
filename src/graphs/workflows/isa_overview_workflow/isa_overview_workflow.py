@@ -4,8 +4,8 @@ from langgraph.graph import StateGraph
 
 from src.graphs.core import WorkflowGraphBuilder
 from src.state import ISAExtractionState
-from src.graphs.types.Node import GraphComponentId
-from src.graphs.nodes.LLM.isa_overview import ISAOverviewNode
+from src.graphs.types.GraphComponentId import GraphComponentId
+from src.graphs.nodes.LLM.isa_overview_node import ISAOverviewNode
 from src.tools import create_schema_getter
 from src.prompts.registry import PromptRegistry
 from src.prompts.renderer import render_prompt
@@ -60,9 +60,6 @@ def create_isa_overview_graph() -> StateGraph:
     # No checkpointer needed here; we only care about the final state.
     builder = WorkflowGraphBuilder(ISAExtractionState)
     return builder.add_nodes(nodes).add_edges(edges).compile()
-
-
-# TODO: refactor this into a more general-purpose workflow runner that can be used for any graph, not just the ISA overview one.
 
 
 def run_isa_overview_workflow(output_path: Path | None = None) -> Path:

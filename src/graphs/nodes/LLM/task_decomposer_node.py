@@ -4,7 +4,7 @@ from langchain_openai import ChatOpenAI
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
 
 from src.graphs.nodes.base_node import LLMGraphNode
-from src.graphs.types.Node import GraphComponentId
+from src.graphs.types.GraphComponentId import GraphComponentId
 from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt
 from src.task import Task

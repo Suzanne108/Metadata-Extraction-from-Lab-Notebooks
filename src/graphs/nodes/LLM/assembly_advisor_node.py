@@ -6,7 +6,7 @@ from langchain.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
 from src.graphs.nodes.base_node import LLMGraphNode
-from src.graphs.types.Node import GraphComponentId
+from src.graphs.types.GraphComponentId import GraphComponentId
 from src.graphs.types.Action import WorkflowAction
 from src.state import ISAExtractionState
 from src.prompts.renderer import render_prompt

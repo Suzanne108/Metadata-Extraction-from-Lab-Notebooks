@@ -160,7 +160,7 @@ class PlannerNode(LLMGraphNode):
         messages = [SystemMessage(content=self.system_prompt), SystemMessage(content=self.policy_prompt), HumanMessage(content=prompt)]
 
         # Call LLM to analyze state and decide next step
-        response_llm = self.model.invoke(messages)
+        response_llm : NextStepLLM = self.model.invoke(messages)
         
         # Transform the LLM response into the internal NextStep representation
         response_internal = self._to_internal(response_llm)

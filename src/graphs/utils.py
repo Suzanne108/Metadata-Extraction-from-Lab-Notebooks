@@ -552,8 +552,6 @@ def visualise_graph(app_or_graph: StateGraph, output_path: str | Path = None):
     print(f"Graph visualization saved to: {output_path}")
     
 
-#TODO: add documentation for this method
-
 def write_final_state(final_state, run_id: str, output_path: str | Path = None) -> Path:
     if output_path is None:
         output_path = Path.cwd() / "output" / f"isa_draft_{run_id}.json"

@@ -5,7 +5,7 @@ from langchain_core.tools import StructuredTool
 import json as _json
 from src.graphs.nodes.base_node import DeterministicGraphNode
 from src.graphs.types.Action import WorkflowAction
-from src.graphs.types.Node import GraphComponentId
+from src.graphs.types.GraphComponentId import GraphComponentId
     
 
 class SearchDocumentCallerNode(DeterministicGraphNode):
@@ -47,7 +47,6 @@ class SearchDocumentCallerNode(DeterministicGraphNode):
             "last_action": WorkflowAction.SEARCH_DOCUMENT
         }
 
-#TODO: not sure the name of this file is appropriate
 #TODO: not sure the validate function should be here
 
 def validate(state: ISAExtractionState):

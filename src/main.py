@@ -23,9 +23,6 @@ if __name__ == "__main__":
 
     document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf" 
     document_manager = index_document(str(document_path))
-
-    #TODO: add options to tweak the document embedding strategy
-
     initial_state = create_initial_state(document_manager)
     app = ISAExtractionWorkflowBuilder(document_manager=document_manager).build()
     app, config, run_id = run_graph_workflow(
@@ -37,9 +34,7 @@ if __name__ == "__main__":
     handle_final_state(app, config, run_id)
 
 
-    #TODO:add tests to for example test the hardcoded parts of the workflow.
-
-    #TODO: use the experiments runner
+   
 
 
 
