@@ -1,3 +1,4 @@
+from src.experiments.run_experiments import load_setup_from_file, run_experiment_variant
 from src.graphs.workflows.workflow_runner import run_graph_workflow
 from src.graphs.workflows.isa_extraction_workflow.initial_state import create_initial_state
 from src.graphs.workflows.isa_extraction_workflow.isa_extraction_workflow_builder import ISAExtractionWorkflowBuilder
@@ -21,17 +22,15 @@ def generate_isa_mental_model(output_path: Path | None = None) -> Path:
 
 if __name__ == "__main__":
 
-    document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf" 
-    document_manager = index_document(str(document_path))
-    initial_state = create_initial_state(document_manager)
-    app = ISAExtractionWorkflowBuilder(document_manager=document_manager).build()
-    app, config, run_id = run_graph_workflow(
-        app=app,
-        initial_state=initial_state,
-        run_prefix="isa-extract",
-        stream=True,
-    )
-    handle_final_state(app, config, run_id)
+    document_path = Path.cwd() / "papers" / "lab_journals" / "N3.pdf"
+
+    setup = load_setup_from_file(Path(__file__).parent / "experiments" / "isa_model_comparison" / "setup_hybrid.py")
+
+    run_experiment_variant(setup=setup, document_path=document_path)
+    
+    
+
+    
 
 
    
