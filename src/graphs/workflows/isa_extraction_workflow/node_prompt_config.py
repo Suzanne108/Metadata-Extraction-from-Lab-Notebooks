@@ -42,7 +42,7 @@ SPECIALIST_NODE_CONFIGS: list[SpecialistNodeConfig] = [
 ]
 
 
-def build_default_node_prompt_configs() -> dict[GraphComponentId, dict[str, str]]:
+def _build_default_node_prompt_configs() -> dict[GraphComponentId, dict[str, str]]:
     """Build default per-node prompt config map for ISA extraction workflow."""
     default_configs: dict[GraphComponentId, dict[str, str]] = {
         GraphComponentId.DOC_OVERVIEW: {
@@ -59,6 +59,7 @@ def build_default_node_prompt_configs() -> dict[GraphComponentId, dict[str, str]
             "prompt_key": "planner",
             "system_prompt_version": "v1-system",
             "policy_prompt_version": "v1-policy",
+            "inference_prompt_version": "v1-inference",
         },
         GraphComponentId.TEAM_LEAD: {
             "prompt_key": "isa_team_lead",
@@ -82,4 +83,4 @@ def build_default_node_prompt_configs() -> dict[GraphComponentId, dict[str, str]
     return default_configs
 
 
-DEFAULT_NODE_PROMPT_CONFIGS = build_default_node_prompt_configs()
+DEFAULT_NODE_PROMPT_CONFIGS = _build_default_node_prompt_configs()

@@ -13,9 +13,9 @@ from src.graphs.workflows.workflow_runner import run_graph_workflow
 from src.graphs.utils import index_document
 
 
-def _load_setup_from_file(setup_file: Path) -> ExperimentSetup:
+def load_setup_from_file(setup_file: Path) -> ExperimentSetup:
     """Load EXPERIMENT_SETUP from a setup file without hard package imports."""
-    loaded = runpy.run_path(str(setup_file))
+    loaded = runpy.run_path(str(setup_file.resolve()))
     setup = loaded["EXPERIMENT_SETUP"]
     return setup
 
@@ -35,24 +35,23 @@ def run_experiment_variant(setup: ExperimentSetup, document_path: Path) -> str:
         app=app,
         initial_state=initial_state,
         run_prefix=f"isa-extract-{setup.variant_name}",
-        stream=False,
+        stream=True
     )
     handle_final_state(app, config, run_id)
     return str(run_id)
 
 
 def collect_experiments() -> list[ExperimentSetup]:
-    """Collect prompt-comparison experiment setups to run in order."""
-    planner_prompt_comparison_dir = Path(__file__).parent / "planner_prompt_comparison"
+    """Collect experiment setups to run in order."""
+    hybrid_setup_file = (Path(__file__).parent / "isa_model_comparison" / "setup_hybrid.py").resolve()
 
     return [
-        _load_setup_from_file(planner_prompt_comparison_dir / "setup_planner_system_v1.py"),
-        _load_setup_from_file(planner_prompt_comparison_dir / "setup_planner_system_v2.py"),
+        load_setup_from_file(hybrid_setup_file),
     ]
 
 
 def main() -> None:
-    """Run the configured ISA extraction prompt-comparison experiments."""
+    """Run the configured ISA extraction experiments."""
     document_path = Path.cwd() / "papers" / "Mock_Arabidopsis_Nitrogen_Study.pdf"
 
     for setup in collect_experiments():
