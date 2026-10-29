@@ -3,6 +3,7 @@ from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
+from langchain_openai import ChatOpenAI
 
 from src.graphs.core import ConditionalRoute, WorkflowGraphBuilder
 from src.graphs.nodes.LLM.document_overview_node import DocumentOverviewNode
@@ -36,8 +37,8 @@ class ISAExtractionWorkflowBuilder:
     def __init__(
         self,
         document_manager: DocumentManager,
-        node_models: dict[GraphComponentId, Any] | None = None,
-        default_model: Any | None = None,
+        node_models: dict[GraphComponentId, ChatOpenAI] | None = None,
+        default_model: ChatOpenAI | None = None,
         node_prompt_configs: dict[GraphComponentId, dict[str, str]] | None = None,
     ) -> None:
         if document_manager.document is None:

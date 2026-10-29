@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
+from langchain_openai import ChatOpenAI
+
 
 class BaseGraphNode(ABC):
     """Common callable contract for all graph node implementations."""
@@ -24,7 +26,7 @@ class LLMGraphNode(BaseGraphNode):
     def __init__(
         self,
         node_id: str,
-        model: Any,
+        model: ChatOpenAI,
         system_prompt: str,
         inference_prompt_template: Any,
         policy_prompt: Optional[str] = None,
