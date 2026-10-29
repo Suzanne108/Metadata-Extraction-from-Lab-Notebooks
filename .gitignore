@@ -1,0 +1,7 @@
+.env
+__pycache__/
+/chroma
+/.vscode
+/langflow-venv
+/papers/lab_journals
+/output

@@ -1,0 +1,11 @@
+name: ISA_overview
+version: v2-inference
+
+input_variables:
+
+- ISA_abstract_model
+
+template: |
+  Provide a concise, practical ISA orientation as plain text following the system prompt’s guidance. Use short paragraphs and bullets, avoid jargon, and do NOT output JSON.
+
+  Here is a textual explanation of the various ISA objects from which you can gather informations: {ISA_abstract_model}

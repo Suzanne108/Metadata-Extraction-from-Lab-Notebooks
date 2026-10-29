@@ -1,0 +1,53 @@
+from src.state import ISAExtractionState
+from src.graphs.types.Action import WorkflowAction
+from src.graphs.types.GraphComponentId import GraphComponentId
+
+def planner_routing_function(state: ISAExtractionState) -> str:
+    """Map the planner's enum action to a concrete graph node label."""
+    decision = state.get("planner_decision")
+    if decision is None or getattr(decision, "action", None) is None:
+        # Fallback to planner loop if we somehow have no decision
+        return GraphComponentId.PLANNER_AGENT.value
+
+    action: WorkflowAction = decision.action
+
+    if action == WorkflowAction.UPDATE_DRAFT:
+        # Route to team lead for specialized creation routing
+        return GraphComponentId.TEAM_LEAD.value
+    if action == WorkflowAction.SEARCH_DOCUMENT:
+        return GraphComponentId.SEARCH_DOCUMENT.value
+    if action == WorkflowAction.FINISH_TASK:
+        return GraphComponentId.TASK_PROGRESS.value
+    if action == WorkflowAction.STOP:
+        # When planner signals completion, first run assembly advice before assembly/export
+        return GraphComponentId.ASSEMBLY_ADVISOR.value
+
+    # Default: keep planner in control
+    return GraphComponentId.PLANNER_AGENT.value
+
+
+def team_lead_routing(state: ISAExtractionState) -> str:
+    """Route based on team lead decision stored in state."""
+    decision = state.get("team_lead_decision")
+    target = getattr(decision, "target", None)
+    if target == "investigation":
+        return GraphComponentId.INVESTIGATION_CREATOR.value
+    if target == "study":
+        return GraphComponentId.STUDY_CREATOR.value
+    if target == "assay":
+        return GraphComponentId.ASSAY_CREATOR.value
+    if target == "process":
+        return GraphComponentId.PROCESS_CREATOR.value
+    if target == "protocol":
+        return GraphComponentId.PROTOCOL_CREATOR.value
+    if target == "factor":
+        return GraphComponentId.FACTOR_CREATOR.value
+    if target == "source":
+        return GraphComponentId.SOURCE_CREATOR.value
+    if target == "sample":
+        return GraphComponentId.SAMPLE_CREATOR.value
+    if target == "material":
+        return GraphComponentId.MATERIAL_CREATOR.value
+    if target == "datafile":
+        return GraphComponentId.DATAFILE_CREATOR.value
+    return GraphComponentId.PLANNER_AGENT.value

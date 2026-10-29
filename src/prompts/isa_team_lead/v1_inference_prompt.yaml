@@ -1,0 +1,12 @@
+name: isa_team_lead
+version: v1-inference
+
+input_variables:
+  - instruction
+  - latest_evidence
+
+template: |
+  Instruction: {instruction}
+  Latest evidence: {latest_evidence}
+
+  Decide the best target specialized agent and rewrite the instruction into an actionable subtask for that agent.

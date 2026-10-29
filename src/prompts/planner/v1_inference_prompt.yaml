@@ -1,0 +1,35 @@
+name: planner
+version: v1-inference
+
+input_variables:
+- previous_messages
+- current_task
+- latest_evidence
+ - latest_evidence_query
+
+template: |
+  Previous Actions: {previous_messages}
+
+  Current Task: {current_task}
+
+  Latest Retrieved Evidence (document chunks):
+  {latest_evidence}
+
+  The field "Latest Retrieved Evidence" contains the most recent set of chunks retrieved from the reference lab journal
+  by the SEARCH_DOCUMENT tool, using the query: {latest_evidence_query}.
+  Treat this as the authoritative, grounded context for the current task.
+
+  Decide exactly ONE next action as a JSON object with fields: action, instruction (optional), query (optional), k (optional), rationale.
+
+  Policy
+  - Operate ONLY on the current task:
+    - If this is the first decision for the current task or there is no relevant evidence yet, you MUST choose "SEARCH_DOCUMENT" before any "UPDATE_DRAFT".
+    - You MUST use "UPDATE_DRAFT" when you can deterministically complete the current task with available evidence.
+    - When choosing "UPDATE_DRAFT", you MUST base your instruction primarily on the Latest Retrieved Evidence and its query,
+      and avoid inventing information that is not supported by these chunks.
+    - Do not use "SEARCH_DOCUMENT" for this task if you did so already for 2 times at least. Do not search for a third time for the same task. Keep in mind that certain information might not be available in the document.
+
+  Message-driven decision rules (prioritize what was just done):
+  - If the latest message indicates SEARCH_DOCUMENT ("NODE: SEARCH_DOCUMENT"), prefer "UPDATE_DRAFT" next.
+
+  Output only the JSON object.
